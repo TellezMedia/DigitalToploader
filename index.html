@@ -203,13 +203,19 @@
     window.location.reload();
   }
 
+  let loadedUserId = null;
+
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (session) {
       document.getElementById('signed-out-view').style.display = 'none';
       document.getElementById('signed-in-view').style.display = 'block';
       document.getElementById('user-email').textContent = session.user.email;
-      loadDashboard(session.user.id);
+      if (loadedUserId !== session.user.id) {
+        loadedUserId = session.user.id;
+        loadDashboard(session.user.id);
+      }
     } else {
+      loadedUserId = null;
       document.getElementById('signed-out-view').style.display = 'flex';
       document.getElementById('signed-in-view').style.display = 'none';
     }
