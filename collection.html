@@ -88,6 +88,7 @@
     border-radius: 4px;
     background: var(--bg);
     flex-shrink: 0;
+    cursor: pointer;
   }
   .card-row .thumb-placeholder {
     width: 44px;
@@ -96,6 +97,21 @@
     background: var(--bg);
     border: 1px dashed var(--border);
     flex-shrink: 0;
+  }
+  #lightbox-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 26, 0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: zoom-out;
+  }
+  #lightbox-overlay img {
+    max-width: 80vw;
+    max-height: 85vh;
+    border-radius: 8px;
   }
   .card-row .name { font-size: 14px; font-weight: 500; }
   .card-row .meta { font-size: 12px; color: var(--text-muted); }
@@ -173,6 +189,10 @@
   <div id="collection-groups"></div>
 </div>
 
+<div id="lightbox-overlay" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
 <script>
   const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
@@ -188,6 +208,15 @@
   async function signOut() {
     await supabaseClient.auth.signOut();
     window.location.reload();
+  }
+
+  function openLightbox(url) {
+    document.getElementById('lightbox-img').src = url;
+    document.getElementById('lightbox-overlay').style.display = 'flex';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox-overlay').style.display = 'none';
   }
 
   supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -261,7 +290,7 @@
       row.innerHTML = `
         <div class="card-info">
           ${card.image_url
-            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy">`
+            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openLightbox('${card.image_url}')">`
             : `<div class="thumb-placeholder"></div>`}
           <div>
             <div class="name">${card.name} ${card.card_number ? '#' + card.card_number : ''}</div>
@@ -382,7 +411,7 @@
         cardRow.innerHTML = `
           <div class="card-info">
             ${row.cards.image_url
-              ? `<img class="thumb" src="${row.cards.image_url}" alt="" loading="lazy">`
+              ? `<img class="thumb" src="${row.cards.image_url}" alt="" loading="lazy" onclick="openLightbox('${row.cards.image_url}')">`
               : `<div class="thumb-placeholder"></div>`}
             <div>
               <div class="name">${row.cards.name} ${row.cards.card_number ? '#' + row.cards.card_number : ''}</div>
