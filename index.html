@@ -140,19 +140,19 @@
   // Fill in your own values from Supabase Project Settings > Data API / API Keys
   const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
     if (error) console.error('Sign-in error:', error);
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     window.location.reload();
   }
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
     if (session) {
       document.getElementById('signed-out-view').style.display = 'none';
       document.getElementById('signed-in-view').style.display = 'block';
@@ -166,7 +166,7 @@
 
   async function loadDashboard(userId) {
     // Pull the user's collection, joined with card + latest price
-    const { data: collection, error: collectionError } = await supabase
+    const { data: collection, error: collectionError } = await supabaseClient
       .from('user_collection')
       .select('quantity, card_id, cards(id, name, latest_prices(market_price))')
       .eq('user_id', userId);
@@ -188,7 +188,7 @@
     document.getElementById('stat-total').textContent = totalCards;
 
     // Master sets + completion
-    const { data: masterSets, error: masterSetsError } = await supabase
+    const { data: masterSets, error: masterSetsError } = await supabaseClient
       .from('user_master_sets')
       .select('sets(id, name, total_cards, games(name))')
       .eq('user_id', userId);
@@ -212,7 +212,7 @@
     for (const row of masterSets) {
       const set = row.sets;
       // Count how many unique cards from this set the user owns
-      const { count: ownedInSet } = await supabase
+      const { count: ownedInSet } = await supabaseClient
         .from('user_collection')
         .select('card_id, cards!inner(set_id)', { count: 'exact', head: true })
         .eq('user_id', userId)
