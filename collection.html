@@ -7,12 +7,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #0A0E1A;
-    --card: #12172A;
-    --border: #232a42;
-    --text: #E8EAF0;
+    --bg: #14213D;
+    --card: #1B2A4D;
+    --border: #2A3A5C;
+    --text: #E6E8EE;
     --text-muted: #8890a6;
-    --accent: #F5A623;
+    --accent: #2E86FF;
+    --accent-light: #39D0FF;
+    --gold: #F6C453;
     --danger: #e05a5a;
   }
   * { box-sizing: border-box; }
@@ -30,7 +32,7 @@
   }
   #signed-out-view button {
     background: var(--accent);
-    color: #1a1300;
+    color: #ffffff;
     border: none;
     padding: 12px 24px;
     border-radius: 8px;
@@ -78,13 +80,30 @@
     gap: 10px;
   }
   .card-row:last-child { border-bottom: none; }
+  .card-row .card-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .card-row .thumb {
+    width: 44px;
+    height: 61px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .card-row .thumb-placeholder {
+    width: 44px;
+    height: 61px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    flex-shrink: 0;
+  }
   .card-row .name { font-size: 14px; font-weight: 500; }
   .card-row .meta { font-size: 12px; color: var(--text-muted); }
   .card-row .actions { display: flex; align-items: center; gap: 8px; }
   .card-row .actions input[type=number] { width: 56px; }
   .add-btn, .save-btn {
     background: var(--accent);
-    color: #1a1300;
+    color: #ffffff;
     border: none;
     padding: 6px 14px;
     border-radius: 6px;
@@ -188,6 +207,7 @@
     const { data: games, error } = await supabaseClient.from('games').select('id, name').order('name');
     if (error) { console.error('Games load error:', error); return; }
     const gameSelect = document.getElementById('game-filter');
+    gameSelect.innerHTML = '<option value="">All games</option>';
     for (const g of games) {
       const opt = document.createElement('option');
       opt.value = g.id;
@@ -221,7 +241,7 @@
     const resultsDiv = document.getElementById('search-results');
     resultsDiv.innerHTML = '<div class="empty">Searching...</div>';
 
-    let query = supabaseClient.from('cards').select('id, name, card_number, rarity, sets(name)').limit(30);
+    let query = supabaseClient.from('cards').select('id, name, card_number, rarity, image_url, sets(name)').limit(30);
     if (setId) query = query.eq('set_id', setId);
     if (searchText) query = query.ilike('name', `%${searchText}%`);
 
@@ -238,9 +258,14 @@
       const row = document.createElement('div');
       row.className = 'card-row';
       row.innerHTML = `
-        <div>
-          <div class="name">${card.name} ${card.card_number ? '#' + card.card_number : ''}</div>
-          <div class="meta">${card.sets?.name || ''} ${card.rarity ? '· ' + card.rarity : ''}</div>
+        <div class="card-info">
+          ${card.image_url
+            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy">`
+            : `<div class="thumb-placeholder"></div>`}
+          <div>
+            <div class="name">${card.name} ${card.card_number ? '#' + card.card_number : ''}</div>
+            <div class="meta">${card.sets?.name || ''} ${card.rarity ? '· ' + card.rarity : ''}</div>
+          </div>
         </div>
         <div class="actions">
           <input type="number" min="1" value="1" id="qty-${card.id}">
@@ -309,7 +334,7 @@
 
     const { data: rows, error } = await supabaseClient
       .from('user_collection')
-      .select('id, quantity, condition, cards(id, name, card_number, set_id, sets(id, name, games(name)))')
+      .select('id, quantity, condition, cards(id, name, card_number, image_url, set_id, sets(id, name, games(name)))')
       .eq('user_id', currentUserId);
 
     if (error) { groupsDiv.innerHTML = '<div class="empty">Load error, see console.</div>'; console.error(error); return; }
@@ -354,9 +379,14 @@
         const cardRow = document.createElement('div');
         cardRow.className = 'card-row';
         cardRow.innerHTML = `
-          <div>
-            <div class="name">${row.cards.name} ${row.cards.card_number ? '#' + row.cards.card_number : ''}</div>
-            <div class="meta">Qty: ${row.quantity} · ${row.condition}</div>
+          <div class="card-info">
+            ${row.cards.image_url
+              ? `<img class="thumb" src="${row.cards.image_url}" alt="" loading="lazy">`
+              : `<div class="thumb-placeholder"></div>`}
+            <div>
+              <div class="name">${row.cards.name} ${row.cards.card_number ? '#' + row.cards.card_number : ''}</div>
+              <div class="meta">Qty: ${row.quantity} · ${row.condition}</div>
+            </div>
           </div>
           <button class="remove-btn" onclick="removeCard('${row.id}')">Remove</button>
         `;
