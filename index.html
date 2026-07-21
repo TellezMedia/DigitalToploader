@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCG Collection Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --card: #12172A;
+    --border: #232a42;
+    --text: #E8EAF0;
+    --text-muted: #8890a6;
+    --accent: #F5A623;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #signed-out-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #signed-out-view button {
+    background: var(--accent);
+    color: #1a1300;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #signed-in-view { display: none; padding: 24px; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .topbar button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 20px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .stat-card p.label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .stat-card p.value {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .stat-card p.sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 0;
+  }
+  .set-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .set-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .set-card p.name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  .set-card p.game { font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
+  .progress-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill { height: 100%; background: var(--accent); }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="signed-out-view">
+  <button onclick="signInWithGoogle()">Sign in with Google</button>
+</div>
+
+<div id="signed-in-view">
+  <div class="topbar">
+    <strong>TCG Collection Tracker</strong>
+    <div>
+      <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div id="stats-column">
+      <div class="stat-card"><p class="label">Portfolio value</p><p class="value" id="stat-value">-</p></div>
+      <div class="stat-card"><p class="label">Unique cards</p><p class="value" id="stat-unique">-</p><p class="sub" id="stat-sets-sub">-</p></div>
+      <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
+    </div>
+    <div>
+      <h2>Set completion</h2>
+      <div id="set-grid" class="set-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Fill in your own values from Supabase Project Settings > Data API / API Keys
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) console.error('Sign-in error:', error);
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      document.getElementById('signed-out-view').style.display = 'none';
+      document.getElementById('signed-in-view').style.display = 'block';
+      document.getElementById('user-email').textContent = session.user.email;
+      loadDashboard(session.user.id);
+    } else {
+      document.getElementById('signed-out-view').style.display = 'flex';
+      document.getElementById('signed-in-view').style.display = 'none';
+    }
+  });
+
+  async function loadDashboard(userId) {
+    // Pull the user's collection, joined with card + latest price
+    const { data: collection, error: collectionError } = await supabase
+      .from('user_collection')
+      .select('quantity, card_id, cards(id, name, latest_prices(market_price))')
+      .eq('user_id', userId);
+
+    if (collectionError) {
+      console.error('Collection query error:', collectionError);
+      return;
+    }
+
+    const totalCards = collection.reduce((sum, row) => sum + row.quantity, 0);
+    const uniqueCards = collection.length;
+    const portfolioValue = collection.reduce((sum, row) => {
+      const price = row.cards?.latest_prices?.[0]?.market_price || 0;
+      return sum + (price * row.quantity);
+    }, 0);
+
+    document.getElementById('stat-value').textContent = '$' + portfolioValue.toFixed(2);
+    document.getElementById('stat-unique').textContent = uniqueCards;
+    document.getElementById('stat-total').textContent = totalCards;
+
+    // Master sets + completion
+    const { data: masterSets, error: masterSetsError } = await supabase
+      .from('user_master_sets')
+      .select('sets(id, name, total_cards, games(name))')
+      .eq('user_id', userId);
+
+    if (masterSetsError) {
+      console.error('Master sets query error:', masterSetsError);
+      return;
+    }
+
+    document.getElementById('stat-sets-sub').textContent =
+      masterSets.length + (masterSets.length === 1 ? ' set' : ' sets');
+
+    const setGrid = document.getElementById('set-grid');
+    setGrid.innerHTML = '';
+
+    if (masterSets.length === 0) {
+      setGrid.innerHTML = '<div class="empty">No master sets flagged yet. Go to Collection and check "Master set" on a set to track it here.</div>';
+      return;
+    }
+
+    for (const row of masterSets) {
+      const set = row.sets;
+      // Count how many unique cards from this set the user owns
+      const { count: ownedInSet } = await supabase
+        .from('user_collection')
+        .select('card_id, cards!inner(set_id)', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('cards.set_id', set.id);
+
+      const pct = set.total_cards > 0 ? Math.round(((ownedInSet || 0) / set.total_cards) * 100) : 0;
+
+      const card = document.createElement('div');
+      card.className = 'set-card';
+      card.innerHTML = `
+        <p class="name">${set.name}</p>
+        <p class="game">${set.games?.name || ''}</p>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <p class="sub" style="margin-top:6px;">${pct}% complete</p>
+      `;
+      setGrid.appendChild(card);
+    }
+  }
+</script>
+
+</body>
+</html>
