@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Digital TopLoader – Collection Manager</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
     --bg: #14213D;
@@ -148,11 +149,81 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
+    cursor: pointer;
   }
   .set-group-header .title { font-size: 14px; font-weight: 600; }
   .set-group-header .game { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
   .master-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
   .empty { color: var(--text-muted); font-size: 13px; padding: 16px; text-align: center; }
+  .game-group {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .game-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--card);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .game-header .count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .game-sets { padding: 12px; }
+  .chevron { transition: transform 0.15s ease; font-size: 14px; color: var(--text-muted); }
+  .chevron.open { transform: rotate(90deg); }
+  .set-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .gallery-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .gallery-card .thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .gallery-card .name { font-size: 11px; font-weight: 500; margin: 0 0 4px; line-height: 1.3; }
+  .gallery-card .qty-row { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 4px; }
+  .gallery-card .qty-row input[type=number] { width: 42px; padding: 3px 4px; font-size: 12px; }
+  .gallery-card .remove-x {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+  }
+  .gallery-card .price { font-size: 11px; color: var(--accent-light); font-weight: 600; margin: 0; }
+  .gallery-card .price .trend-up { color: #4caf50; margin-left: 3px; }
+  .gallery-card .price .trend-down { color: var(--danger); margin-left: 3px; }
+  #search-toast {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--danger);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 1000;
+  }
 </style>
 </head>
 <body>
@@ -179,7 +250,8 @@
     <div class="filters">
       <select id="game-filter" onchange="onGameChange()"><option value="">All games</option></select>
       <select id="set-filter"><option value="">All sets</option></select>
-      <input type="text" id="search-input" placeholder="Search card name...">
+      <input type="text" id="search-input" placeholder="Search card name..." onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
+      <input type="text" id="cardnum-input" placeholder="Card # (choose set first)" onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
       <button class="add-btn" onclick="searchCards()">Search</button>
     </div>
     <div id="search-results"></div>
@@ -188,6 +260,8 @@
   <h2>My collection</h2>
   <div id="collection-groups"></div>
 </div>
+
+<div id="search-toast"></div>
 
 <div id="lightbox-overlay" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="">
@@ -265,15 +339,31 @@
     }
   }
 
+  function showToast(msg) {
+    const toast = document.getElementById('search-toast');
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+  }
+
   async function searchCards() {
     const setId = document.getElementById('set-filter').value;
     const searchText = document.getElementById('search-input').value.trim();
+    const cardNum = document.getElementById('cardnum-input').value.trim();
+
+    if (cardNum && !setId) {
+      showToast('Please choose a set first to search by card number.');
+      return;
+    }
+
     const resultsDiv = document.getElementById('search-results');
     resultsDiv.innerHTML = '<div class="empty">Searching...</div>';
 
     let query = supabaseClient.from('cards').select('id, name, card_number, rarity, image_url, sets(name)').limit(30);
     if (setId) query = query.eq('set_id', setId);
     if (searchText) query = query.ilike('name', `%${searchText}%`);
+    if (cardNum) query = query.eq('card_number', cardNum);
 
     const { data: cards, error } = await query;
     if (error) { resultsDiv.innerHTML = '<div class="empty">Search error, see console.</div>'; console.error(error); return; }
@@ -358,71 +448,143 @@
     }
   }
 
+  async function updateQuantity(rowId, newQty) {
+    const qty = parseInt(newQty) || 1;
+    const { error } = await supabaseClient.from('user_collection').update({ quantity: qty }).eq('id', rowId);
+    if (error) console.error('Quantity update error:', error);
+    loadCollection();
+  }
+
+  let collectionRowsRaw = [];
+  let masterSetIdsRaw = new Set();
+  const expandedGames = new Set();
+  const expandedSets = new Set();
+
+  function toggleGame(gameId) {
+    if (expandedGames.has(gameId)) expandedGames.delete(gameId);
+    else expandedGames.add(gameId);
+    renderCollectionGroups();
+  }
+
+  function toggleSet(setId) {
+    if (expandedSets.has(setId)) expandedSets.delete(setId);
+    else expandedSets.add(setId);
+    renderCollectionGroups();
+  }
+
   async function loadCollection() {
     const groupsDiv = document.getElementById('collection-groups');
     groupsDiv.innerHTML = '<div class="empty">Loading...</div>';
 
     const { data: rows, error } = await supabaseClient
       .from('user_collection')
-      .select('id, quantity, condition, cards(id, name, card_number, image_url, set_id, sets(id, name, games(name)))')
+      .select('id, quantity, condition, cards(id, name, card_number, image_url, rarity, set_id, sets(id, name, games(id, name)), price_trends(latest_price, previous_price))')
       .eq('user_id', currentUserId);
 
     if (error) { groupsDiv.innerHTML = '<div class="empty">Load error, see console.</div>'; console.error(error); return; }
-
-    if (!rows || rows.length === 0) {
-      groupsDiv.innerHTML = '<div class="empty">No cards in your collection yet. Search above to add some.</div>';
-      return;
-    }
 
     const { data: masterSets } = await supabaseClient
       .from('user_master_sets')
       .select('set_id')
       .eq('user_id', currentUserId);
-    const masterSetIds = new Set((masterSets || []).map((m) => m.set_id));
 
-    // Group rows by set
-    const bySet = new Map();
-    for (const row of rows) {
+    collectionRowsRaw = rows || [];
+    masterSetIdsRaw = new Set((masterSets || []).map((m) => m.set_id));
+    renderCollectionGroups();
+  }
+
+  function renderCollectionGroups() {
+    const groupsDiv = document.getElementById('collection-groups');
+
+    if (collectionRowsRaw.length === 0) {
+      groupsDiv.innerHTML = '<div class="empty">No cards in your collection yet. Search above to add some.</div>';
+      return;
+    }
+
+    // Group rows by game, then by set within each game
+    const byGame = new Map();
+    for (const row of collectionRowsRaw) {
       const set = row.cards?.sets;
-      if (!set) continue;
-      if (!bySet.has(set.id)) bySet.set(set.id, { set, rows: [] });
-      bySet.get(set.id).rows.push(row);
+      const game = set?.games;
+      if (!set || !game) continue;
+      if (!byGame.has(game.id)) byGame.set(game.id, { game, sets: new Map() });
+      const gameEntry = byGame.get(game.id);
+      if (!gameEntry.sets.has(set.id)) gameEntry.sets.set(set.id, { set, rows: [] });
+      gameEntry.sets.get(set.id).rows.push(row);
     }
 
     groupsDiv.innerHTML = '';
-    for (const { set, rows: setRows } of bySet.values()) {
-      const group = document.createElement('div');
-      group.className = 'set-group';
-      const isMaster = masterSetIds.has(set.id);
-      group.innerHTML = `
-        <div class="set-group-header">
-          <div><span class="title">${set.name}</span><span class="game">${set.games?.name || ''}</span></div>
-          <label class="master-toggle">
-            <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked)">
-            Master set
-          </label>
+    for (const { game, sets } of byGame.values()) {
+      const totalCardsInGame = [...sets.values()].reduce((sum, s) => sum + s.rows.reduce((a, r) => a + r.quantity, 0), 0);
+      const gameOpen = expandedGames.has(game.id);
+
+      const gameGroup = document.createElement('div');
+      gameGroup.className = 'game-group';
+      gameGroup.innerHTML = `
+        <div class="game-header" onclick="toggleGame('${game.id}')">
+          <i class="ti ti-chevron-right chevron${gameOpen ? ' open' : ''}" aria-hidden="true"></i>
+          <span>${game.name}</span>
+          <span class="count">${sets.size} ${sets.size === 1 ? 'set' : 'sets'} · ${totalCardsInGame} cards</span>
         </div>
-        <div class="card-list"></div>
+        <div class="game-sets" style="display:${gameOpen ? 'block' : 'none'}"></div>
       `;
-      const list = group.querySelector('.card-list');
-      for (const row of setRows) {
-        const cardRow = document.createElement('div');
-        cardRow.className = 'card-row';
-        cardRow.innerHTML = `
-          <div class="card-info">
-            ${row.cards.image_url
-              ? `<img class="thumb" src="${row.cards.image_url}" alt="" loading="lazy" onclick="openLightbox('${row.cards.image_url}')">`
-              : `<div class="thumb-placeholder"></div>`}
+      const gameSetsDiv = gameGroup.querySelector('.game-sets');
+
+      for (const { set, rows: setRows } of sets.values()) {
+        const isMaster = masterSetIdsRaw.has(set.id);
+        const setOpen = expandedSets.has(set.id);
+
+        const setGroup = document.createElement('div');
+        setGroup.className = 'set-group';
+        setGroup.innerHTML = `
+          <div class="set-group-header" onclick="toggleSet('${set.id}')">
             <div>
-              <div class="name">${row.cards.name} ${row.cards.card_number ? '#' + row.cards.card_number : ''}</div>
-              <div class="meta">Qty: ${row.quantity} · ${row.condition}</div>
+              <i class="ti ti-chevron-right chevron${setOpen ? ' open' : ''}" aria-hidden="true"></i>
+              <span class="title">${set.name}</span>
+              <span class="game">${setRows.length} cards</span>
             </div>
+            <label class="master-toggle" onclick="event.stopPropagation()">
+              <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked)">
+              Master set
+            </label>
           </div>
-          <button class="remove-btn" onclick="removeCard('${row.id}')">Remove</button>
+          <div class="set-gallery" style="display:${setOpen ? 'grid' : 'none'}"></div>
         `;
-        list.appendChild(cardRow);
+        const gallery = setGroup.querySelector('.set-gallery');
+
+        for (const row of setRows) {
+          const card = row.cards;
+          const trend = card.price_trends?.[0];
+          let priceHtml = '';
+          if (trend?.latest_price != null) {
+            let arrow = '';
+            if (trend.previous_price != null) {
+              if (Number(trend.latest_price) > Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-up trend-up" aria-hidden="true"></i>';
+              else if (Number(trend.latest_price) < Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-down trend-down" aria-hidden="true"></i>';
+            }
+            priceHtml = `<p class="price">$${Number(trend.latest_price).toFixed(2)}${arrow}</p>`;
+          }
+
+          const tile = document.createElement('div');
+          tile.className = 'gallery-card';
+          tile.innerHTML = `
+            ${card.image_url
+              ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openLightbox('${card.image_url}')">`
+              : `<div class="thumb-placeholder"></div>`}
+            <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}</p>
+            <div class="qty-row">
+              <input type="number" min="1" value="${row.quantity}" onchange="updateQuantity('${row.id}', this.value)">
+              <button class="remove-x" onclick="removeCard('${row.id}')" title="Remove"><i class="ti ti-x" aria-hidden="true"></i></button>
+            </div>
+            ${priceHtml}
+          `;
+          gallery.appendChild(tile);
+        }
+
+        gameSetsDiv.appendChild(setGroup);
       }
-      groupsDiv.appendChild(group);
+
+      groupsDiv.appendChild(gameGroup);
     }
   }
 </script>

@@ -131,7 +131,7 @@
   .set-card p.name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
   .set-card p.game { font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
   .progress-track {
-    height: 5px;
+    height: 8px;
     background: var(--border);
     border-radius: 4px;
     overflow: hidden;
@@ -139,6 +139,57 @@
   .progress-fill { height: 100%; background: var(--accent); }
   h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
   .empty { color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center; }
+  select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .section-header h2 { margin: 0; }
+  .recent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .recent-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .recent-card img, .recent-card .thumb-placeholder {
+    width: 100%;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: var(--bg);
+    cursor: pointer;
+  }
+  .recent-card .thumb-placeholder { border: 1px dashed var(--border); cursor: default; }
+  .recent-card .name { font-size: 12px; font-weight: 500; margin: 0 0 2px; }
+  .recent-card .meta { font-size: 11px; color: var(--text-muted); margin: 0; }
+  .recent-card .price { font-size: 12px; color: var(--accent-light); font-weight: 600; margin-top: 4px; }
+  #lightbox-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 26, 0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: zoom-out;
+  }
+  #lightbox-overlay img { max-width: 80vw; max-height: 85vh; border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -181,10 +232,24 @@
       <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
     </div>
     <div>
+      <div class="section-header">
+        <h2>Recently added</h2>
+        <select id="recent-sort" onchange="renderRecentlyAdded()">
+          <option value="date">Sort: Date added</option>
+          <option value="rarity">Sort: Rarity</option>
+          <option value="value">Sort: Value</option>
+        </select>
+      </div>
+      <div id="recent-grid" class="recent-grid"></div>
+
       <h2>Set completion</h2>
       <div id="set-grid" class="set-grid"></div>
     </div>
   </div>
+</div>
+
+<div id="lightbox-overlay" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
 </div>
 
 <script>
@@ -201,6 +266,53 @@
   async function signOut() {
     await supabaseClient.auth.signOut();
     window.location.reload();
+  }
+
+  function openLightbox(url) {
+    document.getElementById('lightbox-img').src = url;
+    document.getElementById('lightbox-overlay').style.display = 'flex';
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox-overlay').style.display = 'none';
+  }
+
+  let recentCardsRaw = [];
+
+  function renderRecentlyAdded() {
+    const sortBy = document.getElementById('recent-sort').value;
+    const grid = document.getElementById('recent-grid');
+
+    if (recentCardsRaw.length === 0) {
+      grid.innerHTML = '<div class="empty">No cards added yet.</div>';
+      return;
+    }
+
+    let sorted = [...recentCardsRaw];
+    if (sortBy === 'rarity') {
+      sorted.sort((a, b) => (a.cards?.rarity || '').localeCompare(b.cards?.rarity || ''));
+    } else if (sortBy === 'value') {
+      sorted.sort((a, b) => (b.cards?.latest_prices?.[0]?.market_price || 0) - (a.cards?.latest_prices?.[0]?.market_price || 0));
+    }
+    // 'date' is already the default order from the query (added_at desc)
+
+    sorted = sorted.slice(0, 10);
+    grid.innerHTML = '';
+    for (const row of sorted) {
+      const card = row.cards;
+      const price = card?.latest_prices?.[0]?.market_price;
+      const el = document.createElement('div');
+      el.className = 'recent-card';
+      el.innerHTML = `
+        ${card?.image_url
+          ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openLightbox('${card.image_url}')">`
+          : `<div class="thumb-placeholder"></div>`}
+        <p class="name">${card?.name || ''}</p>
+        <p class="meta">${card?.sets?.name || ''}${card?.rarity ? ' · ' + card.rarity : ''}</p>
+        ${price ? `<p class="price">$${Number(price).toFixed(2)}</p>` : ''}
+      `;
+      grid.appendChild(el);
+    }
   }
 
   let loadedUserId = null;
@@ -244,6 +356,21 @@
     document.getElementById('stat-unique').textContent = uniqueCards;
     document.getElementById('stat-total').textContent = totalCards;
 
+    // Recently added cards
+    const { data: recent, error: recentError } = await supabaseClient
+      .from('user_collection')
+      .select('added_at, cards(id, name, image_url, rarity, sets(name), latest_prices(market_price))')
+      .eq('user_id', userId)
+      .order('added_at', { ascending: false })
+      .limit(50);
+
+    if (recentError) {
+      console.error('Recently added query error:', recentError);
+    } else {
+      recentCardsRaw = recent;
+      renderRecentlyAdded();
+    }
+
     // Master sets + completion
     const { data: masterSets, error: masterSetsError } = await supabaseClient
       .from('user_master_sets')
@@ -283,7 +410,7 @@
         <p class="name">${set.name}</p>
         <p class="game">${set.games?.name || ''}</p>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <p class="sub" style="margin-top:6px;">${pct}% complete</p>
+        <p class="sub" style="margin-top:6px;">${ownedInSet || 0}/${set.total_cards} cards · ${pct}%</p>
       `;
       setGrid.appendChild(card);
     }

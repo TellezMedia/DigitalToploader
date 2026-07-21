@@ -1,0 +1,31 @@
+name: Update TCG prices
+
+on:
+  schedule:
+    # Runs nightly at 9:00 UTC (roughly 4-5am Eastern, adjust as you like)
+    - cron: '0 9 * * *'
+  workflow_dispatch: {} # lets you also trigger it manually from the Actions tab
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run price/catalog import
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node import.js
