@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collection - TCG Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --card: #12172A;
+    --border: #232a42;
+    --text: #E8EAF0;
+    --text-muted: #8890a6;
+    --accent: #F5A623;
+    --danger: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #signed-out-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #signed-out-view button {
+    background: var(--accent);
+    color: #1a1300;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #signed-in-view { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .topbar button, select, input[type=text], input[type=number] {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .topbar a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin-right: 16px;
+    font-size: 14px;
+  }
+  .topbar a.active { color: var(--accent); font-weight: 600; }
+  h2 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filters > * { flex: 1; min-width: 140px; }
+  .card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .card-row:last-child { border-bottom: none; }
+  .card-row .name { font-size: 14px; font-weight: 500; }
+  .card-row .meta { font-size: 12px; color: var(--text-muted); }
+  .card-row .actions { display: flex; align-items: center; gap: 8px; }
+  .card-row .actions input[type=number] { width: 56px; }
+  .add-btn, .save-btn {
+    background: var(--accent);
+    color: #1a1300;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .remove-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--danger);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .set-group {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .set-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .set-group-header .title { font-size: 14px; font-weight: 600; }
+  .set-group-header .game { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+  .master-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="signed-out-view">
+  <button onclick="signInWithGoogle()">Sign in with Google</button>
+</div>
+
+<div id="signed-in-view">
+  <div class="topbar">
+    <div>
+      <a href="index.html">Dashboard</a>
+      <a href="collection.html" class="active">Collection</a>
+    </div>
+    <div>
+      <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <h2>Browse & add cards</h2>
+  <div class="panel">
+    <div class="filters">
+      <select id="game-filter" onchange="onGameChange()"><option value="">All games</option></select>
+      <select id="set-filter"><option value="">All sets</option></select>
+      <input type="text" id="search-input" placeholder="Search card name...">
+      <button class="add-btn" onclick="searchCards()">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <h2>My collection</h2>
+  <div id="collection-groups"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUserId = null;
+
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) console.error('Sign-in error:', error);
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      currentUserId = session.user.id;
+      document.getElementById('signed-out-view').style.display = 'none';
+      document.getElementById('signed-in-view').style.display = 'block';
+      document.getElementById('user-email').textContent = session.user.email;
+      loadGames();
+      loadCollection();
+    } else {
+      document.getElementById('signed-out-view').style.display = 'flex';
+      document.getElementById('signed-in-view').style.display = 'none';
+    }
+  });
+
+  async function loadGames() {
+    const { data: games, error } = await supabase.from('games').select('id, name').order('name');
+    if (error) { console.error('Games load error:', error); return; }
+    const gameSelect = document.getElementById('game-filter');
+    for (const g of games) {
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = g.name;
+      gameSelect.appendChild(opt);
+    }
+  }
+
+  async function onGameChange() {
+    const gameId = document.getElementById('game-filter').value;
+    const setSelect = document.getElementById('set-filter');
+    setSelect.innerHTML = '<option value="">All sets</option>';
+    if (!gameId) return;
+    const { data: sets, error } = await supabase
+      .from('sets')
+      .select('id, name')
+      .eq('game_id', gameId)
+      .order('name');
+    if (error) { console.error('Sets load error:', error); return; }
+    for (const s of sets) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      setSelect.appendChild(opt);
+    }
+  }
+
+  async function searchCards() {
+    const setId = document.getElementById('set-filter').value;
+    const searchText = document.getElementById('search-input').value.trim();
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<div class="empty">Searching...</div>';
+
+    let query = supabase.from('cards').select('id, name, card_number, rarity, sets(name)').limit(30);
+    if (setId) query = query.eq('set_id', setId);
+    if (searchText) query = query.ilike('name', `%${searchText}%`);
+
+    const { data: cards, error } = await query;
+    if (error) { resultsDiv.innerHTML = '<div class="empty">Search error, see console.</div>'; console.error(error); return; }
+
+    if (!cards || cards.length === 0) {
+      resultsDiv.innerHTML = '<div class="empty">No cards found. Try a different search or filter.</div>';
+      return;
+    }
+
+    resultsDiv.innerHTML = '';
+    for (const card of cards) {
+      const row = document.createElement('div');
+      row.className = 'card-row';
+      row.innerHTML = `
+        <div>
+          <div class="name">${card.name} ${card.card_number ? '#' + card.card_number : ''}</div>
+          <div class="meta">${card.sets?.name || ''} ${card.rarity ? '· ' + card.rarity : ''}</div>
+        </div>
+        <div class="actions">
+          <input type="number" min="1" value="1" id="qty-${card.id}">
+          <button class="add-btn" onclick="addCard('${card.id}')">Add</button>
+        </div>
+      `;
+      resultsDiv.appendChild(row);
+    }
+  }
+
+  async function addCard(cardId) {
+    const qty = parseInt(document.getElementById(`qty-${cardId}`).value) || 1;
+
+    // Check if this card (default condition/variant/language) already exists for this user
+    const { data: existing } = await supabase
+      .from('user_collection')
+      .select('id, quantity')
+      .eq('user_id', currentUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .is('variant', null)
+      .eq('language', 'English')
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('user_collection')
+        .update({ quantity: existing.quantity + qty })
+        .eq('id', existing.id);
+      if (error) console.error('Update error:', error);
+    } else {
+      const { error } = await supabase
+        .from('user_collection')
+        .insert({ user_id: currentUserId, card_id: cardId, quantity: qty });
+      if (error) console.error('Insert error:', error);
+    }
+
+    loadCollection();
+  }
+
+  async function removeCard(collectionRowId) {
+    const { error } = await supabase.from('user_collection').delete().eq('id', collectionRowId);
+    if (error) console.error('Remove error:', error);
+    loadCollection();
+  }
+
+  async function toggleMasterSet(setId, checked) {
+    if (checked) {
+      const { error } = await supabase
+        .from('user_master_sets')
+        .upsert({ user_id: currentUserId, set_id: setId }, { onConflict: 'user_id,set_id' });
+      if (error) console.error('Master set flag error:', error);
+    } else {
+      const { error } = await supabase
+        .from('user_master_sets')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('set_id', setId);
+      if (error) console.error('Master set unflag error:', error);
+    }
+  }
+
+  async function loadCollection() {
+    const groupsDiv = document.getElementById('collection-groups');
+    groupsDiv.innerHTML = '<div class="empty">Loading...</div>';
+
+    const { data: rows, error } = await supabase
+      .from('user_collection')
+      .select('id, quantity, condition, cards(id, name, card_number, set_id, sets(id, name, games(name)))')
+      .eq('user_id', currentUserId);
+
+    if (error) { groupsDiv.innerHTML = '<div class="empty">Load error, see console.</div>'; console.error(error); return; }
+
+    if (!rows || rows.length === 0) {
+      groupsDiv.innerHTML = '<div class="empty">No cards in your collection yet. Search above to add some.</div>';
+      return;
+    }
+
+    const { data: masterSets } = await supabase
+      .from('user_master_sets')
+      .select('set_id')
+      .eq('user_id', currentUserId);
+    const masterSetIds = new Set((masterSets || []).map((m) => m.set_id));
+
+    // Group rows by set
+    const bySet = new Map();
+    for (const row of rows) {
+      const set = row.cards?.sets;
+      if (!set) continue;
+      if (!bySet.has(set.id)) bySet.set(set.id, { set, rows: [] });
+      bySet.get(set.id).rows.push(row);
+    }
+
+    groupsDiv.innerHTML = '';
+    for (const { set, rows: setRows } of bySet.values()) {
+      const group = document.createElement('div');
+      group.className = 'set-group';
+      const isMaster = masterSetIds.has(set.id);
+      group.innerHTML = `
+        <div class="set-group-header">
+          <div><span class="title">${set.name}</span><span class="game">${set.games?.name || ''}</span></div>
+          <label class="master-toggle">
+            <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked)">
+            Master set
+          </label>
+        </div>
+        <div class="card-list"></div>
+      `;
+      const list = group.querySelector('.card-list');
+      for (const row of setRows) {
+        const cardRow = document.createElement('div');
+        cardRow.className = 'card-row';
+        cardRow.innerHTML = `
+          <div>
+            <div class="name">${row.cards.name} ${row.cards.card_number ? '#' + row.cards.card_number : ''}</div>
+            <div class="meta">Qty: ${row.quantity} · ${row.condition}</div>
+          </div>
+          <button class="remove-btn" onclick="removeCard('${row.id}')">Remove</button>
+        `;
+        list.appendChild(cardRow);
+      }
+      groupsDiv.appendChild(group);
+    }
+  }
+</script>
+
+</body>
+</html>
