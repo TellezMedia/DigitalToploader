@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.3 (2026-07-21)
+
+**Fixed:**
+- Sign-in was completely broken on the live site due to a variable naming collision (our code declared `supabase`, which collided with the global the Supabase CDN library itself creates). Renamed to `supabaseClient` throughout both pages.
+- Game filter dropdown on the Collection page was showing every game duplicated. `loadGames()` runs on every auth state change (which can fire more than once), and wasn't clearing old options first. Now resets to just "All games" before repopulating.
+
+**Added:**
+- Card thumbnail images on both the Browse & Add search results and the My Collection list, pulling from `image_url` in the catalog (falls back to a dashed placeholder box if a card has no image)
+- Brand wordmark ("Digital TopLoader.com") added to the top nav bar on both Dashboard and Collection pages
+
+**Redesigned:**
+- Full brand color palette applied across both pages, replacing the placeholder dark/amber theme: navy (#14213D) background, electric blue (#2E86FF) and light blue (#39D0FF) accents, gold (#F6C453) highlights, matching the official Digital TopLoader logo/brand sheet
+- Sign-in screen rebuilt: logo frame placeholder (icon TBD until real logo files are ready), tricolor wordmark, tagline, and a proper Google sign-in button with real Google icon colors (previously a generic outline button)
+
+**SEO:**
+- Page titles updated: `index.html` is now "Digital TopLoader – TCG Collection Tracker & Portfolio Value", `collection.html` is "Digital TopLoader – Collection Manager"
+
 ## v0.2 (2026-07-21)
 
 **Added:**
