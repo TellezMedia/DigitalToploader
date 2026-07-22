@@ -1,23 +1,5 @@
--- Run this in Supabase SQL Editor
--- Adds a view comparing each card's latest price snapshot to the one before it,
--- used to show the up/down trend arrow on the Collection page.
--- Note: previous_price will be null for every card until at least two
--- price_history snapshots exist for it (i.e. until the import has run at least
--- twice), so no trend arrow will show until then. That's expected.
+-- Run this in Supabase SQL Editor before running import.js
+-- Adds the unique constraints the import script relies on for upserts
 
-create view price_trends as
-with ranked as (
-  select
-    card_id,
-    market_price,
-    recorded_at,
-    row_number() over (partition by card_id order by recorded_at desc) as rn,
-    lag(market_price) over (partition by card_id order by recorded_at asc) as prev_price
-  from price_history
-)
-select
-  card_id,
-  market_price as latest_price,
-  prev_price as previous_price
-from ranked
-where rn = 1;
+alter table sets add constraint sets_game_name_unique unique (game_id, name);
+alter table cards add constraint cards_tcgcsv_product_id_unique unique (tcgcsv_product_id);
