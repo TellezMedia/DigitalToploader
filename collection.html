@@ -1,9 +1,928 @@
-{
-  "name": "tcg-catalog-import",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "One-time import of Pokemon, MTG, and Lorcana catalog + pricing from TCGCSV into Supabase",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital TopLoader – Collection Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #14213D;
+    --card: #1B2A4D;
+    --border: #2A3A5C;
+    --text: #E6E8EE;
+    --text-muted: #8890a6;
+    --accent: #2E86FF;
+    --accent-light: #39D0FF;
+    --gold: #F6C453;
+    --danger: #e05a5a;
   }
-}
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #signed-out-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #signed-out-view button {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #signed-in-view { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .topbar button, select, input[type=text], input[type=number] {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .topbar a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin-right: 16px;
+    font-size: 14px;
+  }
+  .topbar a.active { color: var(--accent); font-weight: 600; }
+  h2 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .filters { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filters > * { flex: 1; min-width: 140px; }
+  .card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .card-row:last-child { border-bottom: none; }
+  .card-row .card-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .card-row .thumb {
+    width: 44px;
+    height: 61px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--bg);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .card-row .thumb-placeholder {
+    width: 44px;
+    height: 61px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    flex-shrink: 0;
+  }
+  #lightbox-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 26, 0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: zoom-out;
+  }
+  #lightbox-overlay img {
+    max-width: 80vw;
+    max-height: 85vh;
+    border-radius: 8px;
+  }
+  .card-row .name { font-size: 14px; font-weight: 500; }
+  .card-row .meta { font-size: 12px; color: var(--text-muted); }
+  .card-row .actions { display: flex; align-items: center; gap: 8px; }
+  .card-row .actions input[type=number] { width: 56px; }
+  .add-btn, .save-btn {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .remove-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--danger);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .set-group {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .set-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .set-group-header .title { font-size: 14px; font-weight: 600; }
+  .set-group-header .game { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+  .master-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 16px; text-align: center; }
+  .game-group {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .game-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--card);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .game-header .count { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .game-sets { padding: 12px; }
+  .chevron { transition: transform 0.15s ease; font-size: 14px; color: var(--text-muted); }
+  .chevron.open { transform: rotate(90deg); }
+  .set-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .gallery-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .gallery-card .thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .gallery-card .name { font-size: 11px; font-weight: 500; margin: 0 0 4px; line-height: 1.3; }
+  .gallery-card .qty-row { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 4px; }
+  .gallery-card .qty-row input[type=number] { width: 42px; padding: 3px 4px; font-size: 12px; }
+  .gallery-card .remove-x {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+  }
+  .gallery-card .price { font-size: 11px; color: var(--accent-light); font-weight: 600; margin: 0; }
+  .gallery-card .price .trend-up { color: #4caf50; margin-left: 3px; }
+  .gallery-card .price .trend-down { color: var(--danger); margin-left: 3px; }
+  #search-toast {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--danger);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 1000;
+  }
+  #signed-out-view {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  .auth-box { width: 100%; max-width: 320px; }
+  .provider-btn {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .provider-btn.google { background: #fff; color: #14213D; border-color: #fff; }
+  .provider-btn.discord { background: #5865F2; color: #fff; border-color: #5865F2; }
+  .provider-btn.github { background: #171717; color: #fff; border-color: #333; }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin: 16px 0;
+  }
+  .auth-divider .line { flex: 1; height: 1px; background: var(--border); }
+  #email-auth-form input { width: 100%; margin-bottom: 10px; }
+  #email-auth-form button.add-btn { width: 100%; margin-bottom: 10px; }
+  .auth-toggle-text { font-size: 13px; color: var(--text-muted); }
+  .auth-toggle-text a { color: var(--accent-light); text-decoration: none; }
+  .auth-error { font-size: 12px; color: var(--danger); min-height: 16px; }
+  .variant-select { margin-top: 6px; }
+  #card-detail-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 26, 0.85);
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 40px 16px;
+  }
+  .detail-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    padding: 20px;
+  }
+  .detail-panel .close-detail {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    float: right;
+  }
+  .detail-header { display: flex; gap: 16px; margin-bottom: 16px; }
+  .detail-header img { width: 120px; border-radius: 8px; }
+  .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
+  .badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .detail-header h3 { font-size: 20px; margin: 0 0 4px; }
+  .detail-header .subtitle { font-size: 13px; color: var(--text-muted); }
+  .detail-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .detail-section .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 8px;
+  }
+  .detail-price-row { display: flex; justify-content: space-between; align-items: center; }
+  .detail-price-row .amount { font-size: 22px; font-weight: 600; }
+  .detail-price-row a { color: var(--accent-light); font-size: 12px; text-decoration: none; }
+  .detail-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .detail-links a {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+  }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+  .detail-grid span.k { color: var(--text-muted); }
+  .variant-row { margin-bottom: 10px; }
+  .variant-row .vname { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+  .variant-row .vbar-track { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .variant-row .vbar-fill { height: 100%; background: var(--accent); }
+  .variant-row .vprices { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .detail-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .detail-actions button { flex: 1; }
+  .wishlist-btn, .alert-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .wishlist-btn.active { background: var(--gold); color: #14213D; border-color: var(--gold); }
+  .alert-btn.active { background: var(--accent-light); color: #14213D; border-color: var(--accent-light); }
+</style>
+</head>
+<body>
+
+<div id="signed-out-view">
+  <div class="auth-box">
+    <p style="font-size:15px; font-weight:600; margin-bottom:16px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></p>
+    <button class="provider-btn google" onclick="signInWithGoogle()">
+      <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.85 2.09-1.81 2.73v2.27h2.93c1.71-1.58 2.7-3.9 2.7-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.17l-2.93-2.27c-.81.55-1.85.87-3.03.87-2.33 0-4.3-1.57-5-3.68H1v2.34C2.48 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M4 10.75c-.18-.55-.29-1.13-.29-1.75s.11-1.2.29-1.75V4.91H1c-.6 1.2-.95 2.55-.95 4.09s.35 2.89.95 4.09z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.48 2.02 1 4.91l3 2.34c.7-2.11 2.67-3.68 5-3.68z"/></svg>
+      Sign in with Google
+    </button>
+    <button class="provider-btn discord" onclick="signInWithDiscord()">
+      <i class="ti ti-brand-discord" aria-hidden="true"></i> Sign in with Discord
+    </button>
+    <button class="provider-btn github" onclick="signInWithGithub()">
+      <i class="ti ti-brand-github" aria-hidden="true"></i> Sign in with GitHub
+    </button>
+    <div class="auth-divider"><div class="line"></div><span>or use email</span><div class="line"></div></div>
+    <div id="email-auth-form">
+      <input type="email" id="auth-email" placeholder="Email">
+      <input type="password" id="auth-password" placeholder="Password">
+      <button class="add-btn" id="email-auth-submit" onclick="handleEmailAuth()">Sign in</button>
+      <p class="auth-toggle-text">Don't have an account? <a href="#" onclick="toggleAuthMode(event)">Sign up</a></p>
+      <p class="auth-error" id="auth-error"></p>
+    </div>
+  </div>
+</div>
+
+<div id="signed-in-view">
+  <div class="topbar">
+    <div style="display: flex; align-items: center;">
+      <span style="font-size: 15px; font-weight: 600; margin-right: 24px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></span>
+      <a href="index.html">Dashboard</a>
+      <a href="collection.html" class="active">Collection</a>
+    </div>
+    <div>
+      <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <h2>Browse & add cards</h2>
+  <div class="panel">
+    <div class="filters">
+      <select id="game-filter" onchange="onGameChange()"><option value="">All games</option></select>
+      <select id="set-filter"><option value="">All sets</option></select>
+      <input type="text" id="search-input" placeholder="Search card name..." onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
+      <input type="text" id="cardnum-input" placeholder="Card # (choose set first)" onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
+      <button class="add-btn" onclick="searchCards()">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <h2>My collection</h2>
+  <div id="collection-groups"></div>
+</div>
+
+<div id="search-toast"></div>
+
+<div id="card-detail-overlay">
+  <div class="detail-panel" id="detail-panel-content"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUserId = null;
+
+  async function signInWithGoogle() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+    if (error) console.error('Sign-in error:', error);
+  }
+
+  async function signOut() {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  }
+
+  async function signInWithDiscord() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'discord' });
+    if (error) console.error('Discord sign-in error:', error);
+  }
+
+  async function signInWithGithub() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'github' });
+    if (error) console.error('GitHub sign-in error:', error);
+  }
+
+  let authMode = 'signin';
+
+  function toggleAuthMode(e) {
+    e.preventDefault();
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    document.getElementById('email-auth-submit').textContent = authMode === 'signin' ? 'Sign in' : 'Sign up';
+    document.querySelector('.auth-toggle-text').innerHTML = authMode === 'signin'
+      ? `Don't have an account? <a href="#" onclick="toggleAuthMode(event)">Sign up</a>`
+      : `Already have an account? <a href="#" onclick="toggleAuthMode(event)">Sign in</a>`;
+    document.getElementById('auth-error').textContent = '';
+  }
+
+  async function handleEmailAuth() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errorEl = document.getElementById('auth-error');
+    errorEl.style.color = 'var(--danger)';
+    errorEl.textContent = '';
+
+    if (!email || !password) {
+      errorEl.textContent = 'Enter both email and password.';
+      return;
+    }
+
+    if (authMode === 'signup') {
+      const { error } = await supabaseClient.auth.signUp({ email, password });
+      if (error) { errorEl.textContent = error.message; return; }
+      errorEl.style.color = 'var(--accent-light)';
+      errorEl.textContent = 'Check your email to confirm your account, then sign in.';
+    } else {
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) { errorEl.textContent = error.message; return; }
+    }
+  }
+
+  function closeCardDetail() {
+    document.getElementById('card-detail-overlay').style.display = 'none';
+  }
+
+  async function openCardDetail(cardId) {
+    const { data: card, error } = await supabaseClient
+      .from('cards')
+      .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
+      .eq('id', cardId)
+      .single();
+
+    if (error || !card) { console.error('Card detail error:', error); return; }
+
+    const { data: wishlistRow } = await supabaseClient
+      .from('user_wishlist').select('id').eq('user_id', currentUserId).eq('card_id', cardId).maybeSingle();
+    const { data: watchlistRow } = await supabaseClient
+      .from('user_watchlist').select('id, target_price').eq('user_id', currentUserId).eq('card_id', cardId).maybeSingle();
+
+    renderCardDetail(card, !!wishlistRow, !!watchlistRow);
+  }
+
+  function renderCardDetail(card, onWishlist, onWatchlist) {
+    const variants = card.latest_prices || [];
+    const primary = variants[0];
+    const maxPrice = Math.max(...variants.map((v) => Number(v.market_price) || 0), 0.01);
+
+    const tcgplayerUrl = card.tcgcsv_product_id ? `https://www.tcgplayer.com/product/${card.tcgcsv_product_id}` : null;
+    const priceChartingUrl = `https://www.pricecharting.com/search-products?q=${encodeURIComponent(card.name + ' ' + (card.sets?.name || ''))}&type=prices`;
+
+    const variantsHtml = variants.length
+      ? variants.map((v) => `
+          <div class="variant-row">
+            <p class="vname">${v.variant}</p>
+            <div class="vbar-track"><div class="vbar-fill" style="width:${maxPrice > 0 ? (Number(v.market_price) / maxPrice * 100) : 0}%"></div></div>
+            <p class="vprices">Low: $${Number(v.low_price || 0).toFixed(2)} · Mid: $${Number(v.mid_price || v.market_price || 0).toFixed(2)} · Market: $${Number(v.market_price || 0).toFixed(2)}</p>
+          </div>
+        `).join('')
+      : '<p class="empty" style="padding:8px 0;">No pricing data yet.</p>';
+
+    const panel = document.getElementById('detail-panel-content');
+    panel.innerHTML = `
+      <button class="close-detail" onclick="closeCardDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <div class="detail-header">
+        ${card.image_url ? `<img src="${card.image_url}" alt="">` : ''}
+        <div>
+          <div class="badges">
+            <span class="badge">${card.sets?.games?.name || ''}</span>
+            ${card.card_type ? `<span class="badge">${card.card_type}</span>` : ''}
+          </div>
+          <h3>${card.name}</h3>
+          <p class="subtitle">${card.sets?.name || ''}${card.card_number ? ' #' + card.card_number : ''}</p>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-price-row">
+          <div>
+            <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
+            <p class="amount">${primary ? '$' + Number(primary.market_price).toFixed(2) : '—'}</p>
+          </div>
+          <div style="text-align:right;">
+            ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
+          </div>
+        </div>
+        <div class="detail-links">
+          <a href="${priceChartingUrl}" target="_blank" rel="noopener">PriceCharting <i class="ti ti-external-link" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Card details</p>
+        <div class="detail-grid">
+          <div><span class="k">Set:</span> ${card.sets?.name || '—'}</div>
+          <div><span class="k">Rarity:</span> ${card.rarity || '—'}</div>
+          <div><span class="k">Number:</span> ${card.card_number || '—'}</div>
+          <div><span class="k">Released:</span> ${card.sets?.release_date || '—'}</div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Pricing breakdown</p>
+        ${variantsHtml}
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Grading & population reports</p>
+        <div class="detail-links">
+          <a href="https://www.psacard.com/pop" target="_blank" rel="noopener">PSA <i class="ti ti-external-link" aria-hidden="true"></i></a>
+          <a href="https://www.beckett.com/grading/pop-report" target="_blank" rel="noopener">BGS <i class="ti ti-external-link" aria-hidden="true"></i></a>
+          <a href="https://www.cgccards.com/population-report/" target="_blank" rel="noopener">CGC <i class="ti ti-external-link" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button class="add-btn" onclick="addCard('${card.id}'); closeCardDetail();">Add to Collection</button>
+        <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
+        <button class="alert-btn${onWatchlist ? ' active' : ''}" id="detail-alert-btn" onclick="toggleWatchlistDetail('${card.id}')">${onWatchlist ? 'Alert set' : 'Alert'}</button>
+      </div>
+    `;
+
+    document.getElementById('card-detail-overlay').style.display = 'flex';
+  }
+
+  async function toggleWishlistDetail(cardId) {
+    const btn = document.getElementById('detail-wishlist-btn');
+    const { data: existing } = await supabaseClient
+      .from('user_wishlist').select('id').eq('user_id', currentUserId).eq('card_id', cardId).maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_wishlist').delete().eq('id', existing.id);
+      btn.textContent = 'Wishlist';
+      btn.classList.remove('active');
+    } else {
+      await supabaseClient.from('user_wishlist').insert({ user_id: currentUserId, card_id: cardId });
+      btn.textContent = 'On Wishlist';
+      btn.classList.add('active');
+    }
+  }
+
+  async function toggleWatchlistDetail(cardId) {
+    const btn = document.getElementById('detail-alert-btn');
+    const { data: existing } = await supabaseClient
+      .from('user_watchlist').select('id').eq('user_id', currentUserId).eq('card_id', cardId).maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_watchlist').delete().eq('id', existing.id);
+      btn.textContent = 'Alert';
+      btn.classList.remove('active');
+    } else {
+      const target = prompt('Alert me when the market price drops to or below:');
+      if (target === null) return;
+      const targetPrice = parseFloat(target);
+      if (isNaN(targetPrice)) { showToast('Enter a valid price.'); return; }
+      await supabaseClient.from('user_watchlist').insert({ user_id: currentUserId, card_id: cardId, target_price: targetPrice });
+      btn.textContent = 'Alert set';
+      btn.classList.add('active');
+    }
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      currentUserId = session.user.id;
+      document.getElementById('signed-out-view').style.display = 'none';
+      document.getElementById('signed-in-view').style.display = 'block';
+      document.getElementById('user-email').textContent = session.user.email;
+      loadGames();
+      loadCollection();
+    } else {
+      document.getElementById('signed-out-view').style.display = 'flex';
+      document.getElementById('signed-in-view').style.display = 'none';
+    }
+  });
+
+  async function loadGames() {
+    const { data: games, error } = await supabaseClient.from('games').select('id, name').order('name');
+    if (error) { console.error('Games load error:', error); return; }
+    const gameSelect = document.getElementById('game-filter');
+    gameSelect.innerHTML = '<option value="">All games</option>';
+    for (const g of games) {
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = g.name;
+      gameSelect.appendChild(opt);
+    }
+  }
+
+  async function onGameChange() {
+    const gameId = document.getElementById('game-filter').value;
+    const setSelect = document.getElementById('set-filter');
+    setSelect.innerHTML = '<option value="">All sets</option>';
+    if (!gameId) return;
+    const { data: sets, error } = await supabaseClient
+      .from('sets')
+      .select('id, name')
+      .eq('game_id', gameId)
+      .order('name');
+    if (error) { console.error('Sets load error:', error); return; }
+    for (const s of sets) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      setSelect.appendChild(opt);
+    }
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('search-toast');
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+  }
+
+  async function searchCards() {
+    const setId = document.getElementById('set-filter').value;
+    const searchText = document.getElementById('search-input').value.trim();
+    const cardNum = document.getElementById('cardnum-input').value.trim();
+
+    if (cardNum && !setId) {
+      showToast('Please choose a set first to search by card number.');
+      return;
+    }
+
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<div class="empty">Searching...</div>';
+
+    let query = supabaseClient.from('cards').select('id, name, card_number, rarity, image_url, sets(name), latest_prices(variant, market_price)').limit(30);
+    if (setId) query = query.eq('set_id', setId);
+    if (searchText) query = query.ilike('name', `%${searchText}%`);
+    if (cardNum) query = query.eq('card_number', cardNum);
+
+    const { data: cards, error } = await query;
+    if (error) { resultsDiv.innerHTML = '<div class="empty">Search error, see console.</div>'; console.error(error); return; }
+
+    if (!cards || cards.length === 0) {
+      resultsDiv.innerHTML = '<div class="empty">No cards found. Try a different search or filter.</div>';
+      return;
+    }
+
+    resultsDiv.innerHTML = '';
+    for (const card of cards) {
+      const row = document.createElement('div');
+      row.className = 'card-row';
+      const variants = card.latest_prices || [];
+      const variantSelectHtml = variants.length > 1
+        ? `<select class="variant-select" id="variant-${card.id}">
+             ${variants.map((v) => `<option value="${v.variant}">${v.variant} - $${Number(v.market_price).toFixed(2)}</option>`).join('')}
+           </select>`
+        : '';
+      row.innerHTML = `
+        <div class="card-info">
+          ${card.image_url
+            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}')">`
+            : `<div class="thumb-placeholder"></div>`}
+          <div>
+            <div class="name">${card.name} ${card.card_number ? '#' + card.card_number : ''}</div>
+            <div class="meta">${card.sets?.name || ''} ${card.rarity ? '· ' + card.rarity : ''}</div>
+            ${variantSelectHtml}
+          </div>
+        </div>
+        <div class="actions">
+          <input type="number" min="1" value="1" id="qty-${card.id}">
+          <button class="add-btn" onclick="addCard('${card.id}')">Add</button>
+        </div>
+      `;
+      resultsDiv.appendChild(row);
+    }
+  }
+
+  async function addCard(cardId) {
+    const qtyInput = document.getElementById(`qty-${cardId}`);
+    const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
+    const variantSelect = document.getElementById(`variant-${cardId}`);
+    const variant = variantSelect ? variantSelect.value : 'Normal';
+
+    // Check if this exact card+variant already exists for this user
+    const { data: existing } = await supabaseClient
+      .from('user_collection')
+      .select('id, quantity')
+      .eq('user_id', currentUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .eq('variant', variant)
+      .eq('language', 'English')
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabaseClient
+        .from('user_collection')
+        .update({ quantity: existing.quantity + qty })
+        .eq('id', existing.id);
+      if (error) console.error('Update error:', error);
+    } else {
+      const { error } = await supabaseClient
+        .from('user_collection')
+        .insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant });
+      if (error) console.error('Insert error:', error);
+    }
+
+    loadCollection();
+  }
+
+  async function removeCard(collectionRowId) {
+    const { error } = await supabaseClient.from('user_collection').delete().eq('id', collectionRowId);
+    if (error) console.error('Remove error:', error);
+    loadCollection();
+  }
+
+  async function toggleMasterSet(setId, checked) {
+    if (checked) {
+      const { error } = await supabaseClient
+        .from('user_master_sets')
+        .upsert({ user_id: currentUserId, set_id: setId }, { onConflict: 'user_id,set_id' });
+      if (error) console.error('Master set flag error:', error);
+    } else {
+      const { error } = await supabaseClient
+        .from('user_master_sets')
+        .delete()
+        .eq('user_id', currentUserId)
+        .eq('set_id', setId);
+      if (error) console.error('Master set unflag error:', error);
+    }
+  }
+
+  async function updateQuantity(rowId, newQty) {
+    const qty = parseInt(newQty) || 1;
+    const { error } = await supabaseClient.from('user_collection').update({ quantity: qty }).eq('id', rowId);
+    if (error) console.error('Quantity update error:', error);
+    loadCollection();
+  }
+
+  let collectionRowsRaw = [];
+  let masterSetIdsRaw = new Set();
+  const expandedGames = new Set();
+  const expandedSets = new Set();
+
+  function toggleGame(gameId) {
+    if (expandedGames.has(gameId)) expandedGames.delete(gameId);
+    else expandedGames.add(gameId);
+    renderCollectionGroups();
+  }
+
+  function toggleSet(setId) {
+    if (expandedSets.has(setId)) expandedSets.delete(setId);
+    else expandedSets.add(setId);
+    renderCollectionGroups();
+  }
+
+  async function loadCollection() {
+    const groupsDiv = document.getElementById('collection-groups');
+    groupsDiv.innerHTML = '<div class="empty">Loading...</div>';
+
+    const { data: rows, error } = await supabaseClient
+      .from('user_collection')
+      .select('id, quantity, condition, variant, cards(id, name, card_number, image_url, rarity, set_id, sets(id, name, games(id, name)), price_trends(variant, latest_price, previous_price))')
+      .eq('user_id', currentUserId);
+
+    if (error) { groupsDiv.innerHTML = '<div class="empty">Load error, see console.</div>'; console.error(error); return; }
+
+    const { data: masterSets } = await supabaseClient
+      .from('user_master_sets')
+      .select('set_id')
+      .eq('user_id', currentUserId);
+
+    collectionRowsRaw = rows || [];
+    masterSetIdsRaw = new Set((masterSets || []).map((m) => m.set_id));
+    renderCollectionGroups();
+  }
+
+  function renderCollectionGroups() {
+    const groupsDiv = document.getElementById('collection-groups');
+
+    if (collectionRowsRaw.length === 0) {
+      groupsDiv.innerHTML = '<div class="empty">No cards in your collection yet. Search above to add some.</div>';
+      return;
+    }
+
+    // Group rows by game, then by set within each game
+    const byGame = new Map();
+    for (const row of collectionRowsRaw) {
+      const set = row.cards?.sets;
+      const game = set?.games;
+      if (!set || !game) continue;
+      if (!byGame.has(game.id)) byGame.set(game.id, { game, sets: new Map() });
+      const gameEntry = byGame.get(game.id);
+      if (!gameEntry.sets.has(set.id)) gameEntry.sets.set(set.id, { set, rows: [] });
+      gameEntry.sets.get(set.id).rows.push(row);
+    }
+
+    groupsDiv.innerHTML = '';
+    for (const { game, sets } of byGame.values()) {
+      const totalCardsInGame = [...sets.values()].reduce((sum, s) => sum + s.rows.reduce((a, r) => a + r.quantity, 0), 0);
+      const gameOpen = expandedGames.has(game.id);
+
+      const gameGroup = document.createElement('div');
+      gameGroup.className = 'game-group';
+      gameGroup.innerHTML = `
+        <div class="game-header" onclick="toggleGame('${game.id}')">
+          <i class="ti ti-chevron-right chevron${gameOpen ? ' open' : ''}" aria-hidden="true"></i>
+          <span>${game.name}</span>
+          <span class="count">${sets.size} ${sets.size === 1 ? 'set' : 'sets'} · ${totalCardsInGame} cards</span>
+        </div>
+        <div class="game-sets" style="display:${gameOpen ? 'block' : 'none'}"></div>
+      `;
+      const gameSetsDiv = gameGroup.querySelector('.game-sets');
+
+      for (const { set, rows: setRows } of sets.values()) {
+        const isMaster = masterSetIdsRaw.has(set.id);
+        const setOpen = expandedSets.has(set.id);
+
+        const setGroup = document.createElement('div');
+        setGroup.className = 'set-group';
+        setGroup.innerHTML = `
+          <div class="set-group-header" onclick="toggleSet('${set.id}')">
+            <div>
+              <i class="ti ti-chevron-right chevron${setOpen ? ' open' : ''}" aria-hidden="true"></i>
+              <span class="title">${set.name}</span>
+              <span class="game">${setRows.length} cards</span>
+            </div>
+            <label class="master-toggle" onclick="event.stopPropagation()">
+              <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked)">
+              Master set
+            </label>
+          </div>
+          <div class="set-gallery" style="display:${setOpen ? 'grid' : 'none'}"></div>
+        `;
+        const gallery = setGroup.querySelector('.set-gallery');
+
+        for (const row of setRows) {
+          const card = row.cards;
+          const rowVariant = row.variant || 'Normal';
+          const trend = card.price_trends?.find((t) => t.variant === rowVariant) || card.price_trends?.[0];
+          let priceHtml = '';
+          if (trend?.latest_price != null) {
+            let arrow = '';
+            if (trend.previous_price != null) {
+              if (Number(trend.latest_price) > Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-up trend-up" aria-hidden="true"></i>';
+              else if (Number(trend.latest_price) < Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-down trend-down" aria-hidden="true"></i>';
+            }
+            priceHtml = `<p class="price">$${Number(trend.latest_price).toFixed(2)}${arrow}</p>`;
+          }
+          const variantLabel = rowVariant !== 'Normal' ? `<p class="meta" style="font-size:10px; margin:0 0 2px;">${rowVariant}</p>` : '';
+
+          const tile = document.createElement('div');
+          tile.className = 'gallery-card';
+          tile.innerHTML = `
+            ${card.image_url
+              ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}')">`
+              : `<div class="thumb-placeholder"></div>`}
+            <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}</p>
+            ${variantLabel}
+            <div class="qty-row">
+              <input type="number" min="1" value="${row.quantity}" onchange="updateQuantity('${row.id}', this.value)">
+              <button class="remove-x" onclick="removeCard('${row.id}')" title="Remove"><i class="ti ti-x" aria-hidden="true"></i></button>
+            </div>
+            ${priceHtml}
+          `;
+          gallery.appendChild(tile);
+        }
+
+        gameSetsDiv.appendChild(setGroup);
+      }
+
+      groupsDiv.appendChild(gameGroup);
+    }
+  }
+</script>
+
+</body>
+</html>
