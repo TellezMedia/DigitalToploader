@@ -179,17 +179,93 @@
   .recent-card .name { font-size: 12px; font-weight: 500; margin: 0 0 2px; }
   .recent-card .meta { font-size: 11px; color: var(--text-muted); margin: 0; }
   .recent-card .price { font-size: 12px; color: var(--accent-light); font-weight: 600; margin-top: 4px; }
-  #lightbox-overlay {
+  #card-detail-overlay {
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(10, 14, 26, 0.85);
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 1000;
-    cursor: zoom-out;
+    overflow-y: auto;
+    padding: 40px 16px;
   }
-  #lightbox-overlay img { max-width: 80vw; max-height: 85vh; border-radius: 8px; }
+  .detail-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    padding: 20px;
+  }
+  .detail-panel .close-detail {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    float: right;
+  }
+  .detail-header { display: flex; gap: 16px; margin-bottom: 16px; }
+  .detail-header img { width: 120px; border-radius: 8px; }
+  .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
+  .badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .detail-header h3 { font-size: 20px; margin: 0 0 4px; }
+  .detail-header .subtitle { font-size: 13px; color: var(--text-muted); }
+  .detail-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .detail-section .label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 8px;
+  }
+  .detail-price-row { display: flex; justify-content: space-between; align-items: center; }
+  .detail-price-row .amount { font-size: 22px; font-weight: 600; }
+  .detail-price-row a { color: var(--accent-light); font-size: 12px; text-decoration: none; }
+  .detail-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .detail-links a {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+  }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+  .detail-grid span.k { color: var(--text-muted); }
+  .variant-row { margin-bottom: 10px; }
+  .variant-row .vname { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+  .variant-row .vbar-track { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .variant-row .vbar-fill { height: 100%; background: var(--accent); }
+  .variant-row .vprices { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .detail-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .detail-actions button { flex: 1; }
+  .wishlist-btn, .alert-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .wishlist-btn.active { background: var(--gold); color: #14213D; border-color: var(--gold); }
+  .alert-btn.active { background: var(--accent-light); color: #14213D; border-color: var(--accent-light); }
   .auth-box { width: 100%; max-width: 320px; }
   .provider-btn {
     width: 100%;
@@ -322,8 +398,8 @@
   </div>
 </div>
 
-<div id="lightbox-overlay" onclick="closeLightbox()">
-  <img id="lightbox-img" src="" alt="">
+<div id="card-detail-overlay">
+  <div class="detail-panel" id="detail-panel-content"></div>
 </div>
 
 <script>
@@ -387,13 +463,164 @@
     }
   }
 
-  function openLightbox(url) {
-    document.getElementById('lightbox-img').src = url;
-    document.getElementById('lightbox-overlay').style.display = 'flex';
+  function closeCardDetail() {
+    document.getElementById('card-detail-overlay').style.display = 'none';
   }
 
-  function closeLightbox() {
-    document.getElementById('lightbox-overlay').style.display = 'none';
+  async function openCardDetail(cardId) {
+    const { data: card, error } = await supabaseClient
+      .from('cards')
+      .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
+      .eq('id', cardId)
+      .single();
+
+    if (error || !card) { console.error('Card detail error:', error); return; }
+
+    const { data: wishlistRow } = await supabaseClient
+      .from('user_wishlist').select('id').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
+    const { data: watchlistRow } = await supabaseClient
+      .from('user_watchlist').select('id, target_price').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
+
+    renderCardDetail(card, !!wishlistRow, !!watchlistRow);
+  }
+
+  function renderCardDetail(card, onWishlist, onWatchlist) {
+    const variants = card.latest_prices || [];
+    const primary = variants[0];
+    const maxPrice = Math.max(...variants.map((v) => Number(v.market_price) || 0), 0.01);
+
+    const tcgplayerUrl = card.tcgcsv_product_id ? `https://www.tcgplayer.com/product/${card.tcgcsv_product_id}` : null;
+    const priceChartingUrl = `https://www.pricecharting.com/search-products?q=${encodeURIComponent(card.name + ' ' + (card.sets?.name || ''))}&type=prices`;
+
+    const variantsHtml = variants.length
+      ? variants.map((v) => `
+          <div class="variant-row">
+            <p class="vname">${v.variant}</p>
+            <div class="vbar-track"><div class="vbar-fill" style="width:${maxPrice > 0 ? (Number(v.market_price) / maxPrice * 100) : 0}%"></div></div>
+            <p class="vprices">Low: $${Number(v.low_price || 0).toFixed(2)} · Mid: $${Number(v.mid_price || v.market_price || 0).toFixed(2)} · Market: $${Number(v.market_price || 0).toFixed(2)}</p>
+          </div>
+        `).join('')
+      : '<p class="empty" style="padding:8px 0;">No pricing data yet.</p>';
+
+    const panel = document.getElementById('detail-panel-content');
+    panel.innerHTML = `
+      <button class="close-detail" onclick="closeCardDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <div class="detail-header">
+        ${card.image_url ? `<img src="${card.image_url}" alt="">` : ''}
+        <div>
+          <div class="badges">
+            <span class="badge">${card.sets?.games?.name || ''}</span>
+            ${card.card_type ? `<span class="badge">${card.card_type}</span>` : ''}
+          </div>
+          <h3>${card.name}</h3>
+          <p class="subtitle">${card.sets?.name || ''}${card.card_number ? ' #' + card.card_number : ''}</p>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-price-row">
+          <div>
+            <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
+            <p class="amount">${primary ? '$' + Number(primary.market_price).toFixed(2) : '—'}</p>
+          </div>
+          <div style="text-align:right;">
+            ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
+          </div>
+        </div>
+        <div class="detail-links">
+          <a href="${priceChartingUrl}" target="_blank" rel="noopener">PriceCharting <i class="ti ti-external-link" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Card details</p>
+        <div class="detail-grid">
+          <div><span class="k">Set:</span> ${card.sets?.name || '—'}</div>
+          <div><span class="k">Rarity:</span> ${card.rarity || '—'}</div>
+          <div><span class="k">Number:</span> ${card.card_number || '—'}</div>
+          <div><span class="k">Released:</span> ${card.sets?.release_date || '—'}</div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Pricing breakdown</p>
+        ${variantsHtml}
+      </div>
+
+      <div class="detail-section">
+        <p class="label">Grading & population reports</p>
+        <div class="detail-links">
+          <a href="https://www.psacard.com/pop" target="_blank" rel="noopener">PSA <i class="ti ti-external-link" aria-hidden="true"></i></a>
+          <a href="https://www.beckett.com/grading/pop-report" target="_blank" rel="noopener">BGS <i class="ti ti-external-link" aria-hidden="true"></i></a>
+          <a href="https://www.cgccards.com/population-report/" target="_blank" rel="noopener">CGC <i class="ti ti-external-link" aria-hidden="true"></i></a>
+        </div>
+      </div>
+
+      <div class="detail-actions">
+        <button class="add-btn" onclick="addCardFromDashboard('${card.id}')">Add to Collection</button>
+        <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
+        <button class="alert-btn${onWatchlist ? ' active' : ''}" id="detail-alert-btn" onclick="toggleWatchlistDetail('${card.id}')">${onWatchlist ? 'Alert set' : 'Alert'}</button>
+      </div>
+    `;
+
+    document.getElementById('card-detail-overlay').style.display = 'flex';
+  }
+
+  async function addCardFromDashboard(cardId) {
+    const { data: existing } = await supabaseClient
+      .from('user_collection')
+      .select('id, quantity')
+      .eq('user_id', loadedUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .eq('variant', 'Normal')
+      .eq('language', 'English')
+      .maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_collection').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+    } else {
+      await supabaseClient.from('user_collection').insert({ user_id: loadedUserId, card_id: cardId, quantity: 1, variant: 'Normal' });
+    }
+
+    closeCardDetail();
+    loadDashboard(loadedUserId);
+  }
+
+  async function toggleWishlistDetail(cardId) {
+    const btn = document.getElementById('detail-wishlist-btn');
+    const { data: existing } = await supabaseClient
+      .from('user_wishlist').select('id').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_wishlist').delete().eq('id', existing.id);
+      btn.textContent = 'Wishlist';
+      btn.classList.remove('active');
+    } else {
+      await supabaseClient.from('user_wishlist').insert({ user_id: loadedUserId, card_id: cardId });
+      btn.textContent = 'On Wishlist';
+      btn.classList.add('active');
+    }
+  }
+
+  async function toggleWatchlistDetail(cardId) {
+    const btn = document.getElementById('detail-alert-btn');
+    const { data: existing } = await supabaseClient
+      .from('user_watchlist').select('id').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_watchlist').delete().eq('id', existing.id);
+      btn.textContent = 'Alert';
+      btn.classList.remove('active');
+    } else {
+      const target = prompt('Alert me when the market price drops to or below:');
+      if (target === null) return;
+      const targetPrice = parseFloat(target);
+      if (isNaN(targetPrice)) return;
+      await supabaseClient.from('user_watchlist').insert({ user_id: loadedUserId, card_id: cardId, target_price: targetPrice });
+      btn.textContent = 'Alert set';
+      btn.classList.add('active');
+    }
   }
 
   let recentCardsRaw = [];
@@ -429,7 +656,7 @@
       el.className = 'recent-card';
       el.innerHTML = `
         ${card?.image_url
-          ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openLightbox('${card.image_url}')">`
+          ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}')">`
           : `<div class="thumb-placeholder"></div>`}
         <p class="name">${card?.name || ''}</p>
         <p class="meta">${card?.sets?.name || ''}${card?.rarity ? ' · ' + card.rarity : ''}</p>
