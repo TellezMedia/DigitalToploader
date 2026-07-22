@@ -125,4 +125,79 @@ async function importGame(game) {
       .single();
 
     if (setError) {
-      console.log(
+      console.log(`    Set upsert failed: ${setError.message}`);
+      continue;
+    }
+
+    // Group ALL price rows per productId, since a card can have multiple
+    // priced variants (Normal, Reverse Holofoil, etc) as separate rows here.
+    const pricesByProductId = new Map();
+    for (const p of prices) {
+      if (!pricesByProductId.has(p.productId)) pricesByProductId.set(p.productId, []);
+      pricesByProductId.get(p.productId).push(p);
+    }
+
+    const cardRows = singleCards.map((product) => ({
+      set_id: setRow.id,
+      name: product.name,
+      card_number: getExtendedValue(product, 'Number') || getExtendedValue(product, 'CardNumber'),
+      rarity: getExtendedValue(product, 'Rarity'),
+      card_type: getExtendedValue(product, 'CardType') || getExtendedValue(product, 'Type'),
+      image_url: product.imageUrl || null,
+      tcgcsv_product_id: String(product.productId),
+    }));
+
+    // Upsert cards in batches of 500
+    const insertedCards = [];
+    for (let i = 0; i < cardRows.length; i += 500) {
+      const batch = cardRows.slice(i, i + 500);
+      const { data, error } = await supabase
+        .from('cards')
+        .upsert(batch, { onConflict: 'tcgcsv_product_id' })
+        .select();
+      if (error) {
+        console.log(`    Card batch upsert failed: ${error.message}`);
+        continue;
+      }
+      insertedCards.push(...data);
+    }
+
+    // Insert price snapshots for cards we successfully upserted, one row
+    // per variant (Normal, Reverse Holofoil, etc), not just one per card.
+    const priceRows = [];
+    for (const card of insertedCards) {
+      const variantPrices = pricesByProductId.get(Number(card.tcgcsv_product_id)) || [];
+      for (const vp of variantPrices) {
+        if (vp.marketPrice == null) continue;
+        priceRows.push({
+          card_id: card.id,
+          variant: vp.subTypeName || 'Normal',
+          market_price: vp.marketPrice,
+          low_price: vp.lowPrice,
+          mid_price: vp.midPrice,
+          high_price: vp.highPrice,
+        });
+      }
+    }
+
+    for (let i = 0; i < priceRows.length; i += 500) {
+      const batch = priceRows.slice(i, i + 500);
+      const { error } = await supabase.from('price_history').insert(batch);
+      if (error) console.log(`    Price batch insert failed: ${error.message}`);
+    }
+
+    console.log(`    Imported ${insertedCards.length} cards, ${priceRows.length} prices`);
+  }
+}
+
+async function main() {
+  for (const game of GAMES) {
+    await importGame(game);
+  }
+  console.log('\nDone.');
+}
+
+main().catch((err) => {
+  console.error('Import failed:', err);
+  process.exit(1);
+});
