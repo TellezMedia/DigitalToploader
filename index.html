@@ -270,18 +270,15 @@
     display: none;
     align-items: center;
     gap: 20px;
-    background: var(--card);
-    border: 1px solid var(--accent);
-    border-radius: 12px;
-    padding: 16px 20px;
     margin-bottom: 24px;
     cursor: pointer;
   }
   .highlight-section img {
-    width: 110px;
+    width: 170px;
     aspect-ratio: 5 / 7;
     object-fit: cover;
     border-radius: 8px;
+    border: 2px solid var(--accent);
     flex-shrink: 0;
   }
   .highlight-section .label {
@@ -403,16 +400,6 @@
     </div>
   </div>
 
-  <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId)">
-    <img id="top-card-img" src="" alt="">
-    <div>
-      <p class="label">Top card in your collection</p>
-      <h3 id="top-card-name"></h3>
-      <p class="meta" id="top-card-meta"></p>
-      <p class="price" id="top-card-price"></p>
-    </div>
-  </div>
-
   <div class="layout">
     <div id="stats-column">
       <div class="stat-card"><p class="label">Portfolio value</p><p class="value" id="stat-value">-</p></div>
@@ -420,6 +407,16 @@
       <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
     </div>
     <div>
+      <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId)">
+        <img id="top-card-img" src="" alt="">
+        <div>
+          <p class="label">Top card in your collection</p>
+          <h3 id="top-card-name"></h3>
+          <p class="meta" id="top-card-meta"></p>
+          <p class="price" id="top-card-price"></p>
+        </div>
+      </div>
+
       <div class="section-header">
         <h2>Recently added</h2>
         <select id="recent-sort" onchange="renderRecentlyAdded()">
