@@ -266,6 +266,34 @@
   }
   .wishlist-btn.active { background: var(--gold); color: #14213D; border-color: var(--gold); }
   .alert-btn.active { background: var(--accent-light); color: #14213D; border-color: var(--accent-light); }
+  .highlight-section {
+    display: none;
+    align-items: center;
+    gap: 20px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    cursor: pointer;
+  }
+  .highlight-section img {
+    width: 110px;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .highlight-section .label {
+    font-size: 11px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 4px;
+  }
+  .highlight-section h3 { font-size: 18px; margin: 0 0 4px; }
+  .highlight-section .meta { font-size: 13px; color: var(--text-muted); margin: 0 0 6px; }
+  .highlight-section .price { font-size: 20px; font-weight: 600; color: var(--accent-light); margin: 0; }
   .auth-box { width: 100%; max-width: 320px; }
   .provider-btn {
     width: 100%;
@@ -372,6 +400,16 @@
       <a class="add-collection-btn" href="collection.html"><i class="ti ti-plus" aria-hidden="true"></i> Add to Collection</a>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin: 0 12px;"></span>
       <button onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId)">
+    <img id="top-card-img" src="" alt="">
+    <div>
+      <p class="label">Top card in your collection</p>
+      <h3 id="top-card-name"></h3>
+      <p class="meta" id="top-card-meta"></p>
+      <p class="price" id="top-card-price"></p>
     </div>
   </div>
 
@@ -684,11 +722,13 @@
     }
   });
 
+  let topCardId = null;
+
   async function loadDashboard(userId) {
     // Pull the user's collection, joined with card + latest price
     const { data: collection, error: collectionError } = await supabaseClient
       .from('user_collection')
-      .select('quantity, variant, card_id, cards(id, name, latest_prices(variant, market_price))')
+      .select('quantity, variant, card_id, cards(id, name, image_url, card_number, sets(name), latest_prices(variant, market_price))')
       .eq('user_id', userId);
 
     if (collectionError) {
@@ -698,16 +738,36 @@
 
     const totalCards = collection.reduce((sum, row) => sum + row.quantity, 0);
     const uniqueCards = collection.length;
-    const portfolioValue = collection.reduce((sum, row) => {
+    let portfolioValue = 0;
+    let topRow = null;
+    let topPrice = 0;
+
+    for (const row of collection) {
       const rowVariant = row.variant || 'Normal';
       const priceEntry = row.cards?.latest_prices?.find((p) => p.variant === rowVariant) || row.cards?.latest_prices?.[0];
       const price = priceEntry?.market_price || 0;
-      return sum + (price * row.quantity);
-    }, 0);
+      portfolioValue += price * row.quantity;
+      if (price > topPrice) {
+        topPrice = price;
+        topRow = row;
+      }
+    }
 
     document.getElementById('stat-value').textContent = '$' + portfolioValue.toFixed(2);
     document.getElementById('stat-unique').textContent = uniqueCards;
     document.getElementById('stat-total').textContent = totalCards;
+
+    const topCardSection = document.getElementById('top-card-section');
+    if (topRow && topPrice > 0) {
+      topCardId = topRow.cards.id;
+      document.getElementById('top-card-img').src = topRow.cards.image_url || '';
+      document.getElementById('top-card-name').textContent = topRow.cards.name + (topRow.cards.card_number ? ' #' + topRow.cards.card_number : '');
+      document.getElementById('top-card-meta').textContent = topRow.cards.sets?.name || '';
+      document.getElementById('top-card-price').textContent = '$' + topPrice.toFixed(2);
+      topCardSection.style.display = 'flex';
+    } else {
+      topCardSection.style.display = 'none';
+    }
 
     // Recently added cards
     const { data: recent, error: recentError } = await supabaseClient

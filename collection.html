@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Digital TopLoader – Collection Manager</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
@@ -351,6 +352,16 @@
   }
   .wishlist-btn.active { background: var(--gold); color: #14213D; border-color: var(--gold); }
   .alert-btn.active { background: var(--accent-light); color: #14213D; border-color: var(--accent-light); }
+  #import-summary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    display: none;
+  }
+  #import-summary .unmatched-item { color: var(--text-muted); font-size: 12px; margin: 2px 0; }
 </style>
 </head>
 <body>
@@ -404,7 +415,22 @@
     <div id="search-results"></div>
   </div>
 
-  <h2>My collection</h2>
+  <div class="section-header">
+    <h2>My collection</h2>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <a href="collection-import-template.csv" download style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
+        <i class="ti ti-download" aria-hidden="true"></i> Template
+      </a>
+      <a href="#" onclick="exportCollectionCSV(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
+        <i class="ti ti-file-export" aria-hidden="true"></i> Export CSV
+      </a>
+      <a href="#" onclick="document.getElementById('csv-import-input').click(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
+        <i class="ti ti-file-import" aria-hidden="true"></i> Import CSV
+      </a>
+      <input type="file" id="csv-import-input" accept=".csv" style="display:none;" onchange="importCollectionCSV(event)">
+    </div>
+  </div>
+  <div id="import-summary"></div>
   <div id="collection-groups"></div>
 </div>
 
@@ -802,6 +828,120 @@
     if (expandedSets.has(setId)) expandedSets.delete(setId);
     else expandedSets.add(setId);
     renderCollectionGroups();
+  }
+
+  async function exportCollectionCSV() {
+    const { data: rows, error } = await supabaseClient
+      .from('user_collection')
+      .select('quantity, condition, variant, cards(name, card_number, sets(name, games(name)))')
+      .eq('user_id', currentUserId);
+
+    if (error) { console.error('Export error:', error); showToast('Export failed, see console.'); return; }
+
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Game', 'Set', 'Card Name', 'Card Number', 'Variant', 'Quantity', 'Condition'];
+    const lines = [header.join(',')];
+
+    for (const row of rows) {
+      const c = row.cards;
+      lines.push([
+        c?.sets?.games?.name || '',
+        c?.sets?.name || '',
+        c?.name || '',
+        c?.card_number || '',
+        row.variant || 'Normal',
+        row.quantity,
+        row.condition,
+      ].map(escape).join(','));
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `digitaltoploader-collection-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importCollectionCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        await processImportRows(results.data);
+        event.target.value = ''; // reset so the same file can be re-selected later
+      },
+    });
+  }
+
+  async function processImportRows(rows) {
+    const summaryDiv = document.getElementById('import-summary');
+    summaryDiv.style.display = 'block';
+    summaryDiv.innerHTML = '<p>Importing...</p>';
+
+    let imported = 0;
+    const unmatched = [];
+
+    for (const row of rows) {
+      const game = (row['Game'] || '').trim();
+      const set = (row['Set'] || '').trim();
+      const name = (row['Card Name'] || '').trim();
+      const cardNumber = (row['Card Number'] || '').trim();
+      const variant = (row['Variant'] || 'Normal').trim() || 'Normal';
+      const qty = parseInt(row['Quantity']) || 1;
+      const condition = (row['Condition'] || 'Near Mint').trim() || 'Near Mint';
+
+      if (!name) continue;
+
+      let query = supabaseClient
+        .from('cards')
+        .select('id, sets!inner(name, games!inner(name))')
+        .ilike('name', name)
+        .limit(1);
+      if (set) query = query.ilike('sets.name', set);
+      if (game) query = query.ilike('sets.games.name', game);
+      if (cardNumber) query = query.eq('card_number', cardNumber);
+
+      const { data: matches, error: matchError } = await query;
+
+      if (matchError || !matches || matches.length === 0) {
+        unmatched.push(`${name}${set ? ' (' + set + ')' : ''}`);
+        continue;
+      }
+
+      const cardId = matches[0].id;
+
+      const { data: existing } = await supabaseClient
+        .from('user_collection')
+        .select('id, quantity')
+        .eq('user_id', currentUserId)
+        .eq('card_id', cardId)
+        .eq('condition', condition)
+        .eq('variant', variant)
+        .eq('language', 'English')
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseClient.from('user_collection').update({ quantity: existing.quantity + qty }).eq('id', existing.id);
+      } else {
+        await supabaseClient.from('user_collection').insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, condition });
+      }
+      imported++;
+    }
+
+    let html = `<p><strong>${imported}</strong> card${imported === 1 ? '' : 's'} imported successfully.</p>`;
+    if (unmatched.length > 0) {
+      html += `<p style="margin-top:8px;"><strong>${unmatched.length}</strong> row${unmatched.length === 1 ? '' : 's'} could not be matched to the catalog:</p>`;
+      html += unmatched.map((u) => `<p class="unmatched-item">- ${u}</p>`).join('');
+      html += `<p class="unmatched-item" style="margin-top:6px;">Check spelling and set names match the catalog exactly.</p>`;
+    }
+    summaryDiv.innerHTML = html;
+
+    loadCollection();
   }
 
   async function loadCollection() {
