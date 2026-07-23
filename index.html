@@ -156,11 +156,12 @@
   .section-header h2 { margin: 0; }
   .recent-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    justify-content: start;
     gap: 12px;
     margin-bottom: 28px;
   }
   .recent-card {
+    width: 130px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -699,7 +700,29 @@
       `;
       grid.appendChild(el);
     }
+    layoutRecentGrid(sorted.length);
   }
+
+  // Picks a column count that divides evenly into the number of cards being
+  // shown, so the grid always fills complete rows (extending to a 3rd, 4th,
+  // 5th row as needed) instead of leaving a lopsided partial last row.
+  function layoutRecentGrid(itemCount) {
+    const grid = document.getElementById('recent-grid');
+    if (!grid || itemCount === 0) return;
+    const cardWidth = 130;
+    const gap = 12;
+    const containerWidth = grid.clientWidth || grid.parentElement.clientWidth || 700;
+    const maxCols = Math.max(1, Math.floor((containerWidth + gap) / (cardWidth + gap)));
+    let cols = Math.min(maxCols, itemCount);
+    while (cols > 1 && itemCount % cols !== 0) cols--;
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${cardWidth}px)`;
+  }
+
+  window.addEventListener('resize', () => {
+    const grid = document.getElementById('recent-grid');
+    const count = grid ? grid.children.length : 0;
+    if (count > 0) layoutRecentGrid(count);
+  });
 
   let loadedUserId = null;
 

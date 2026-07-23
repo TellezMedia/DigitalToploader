@@ -1,14 +1,15 @@
 # Release Notes
 
+## v0.8 (2026-07-22)
+
+**Fixed (revised from v0.8):** v0.8's centering fix for the Recently Added grid didn't fit the site's left-heavy layout. Replaced it with a better approach: the grid now picks a column count that divides evenly into however many cards are being shown, so it always fills complete rows, extending to a 3rd, 4th, or 5th row as needed, rather than leaving a partial row (centered or otherwise). Recalculates on window resize, so it stays correct across screen sizes. Grid stays left-aligned, consistent with the rest of the layout.
+
+
+Attempted fix centered an incomplete last row instead of leaving it flush-left with a gap.
+
 ## v0.7 (2026-07-22)
 
-Catch-up release. Two small Dashboard tweaks that were delivered as loose files after v0.6 rather than through the normal versioned process, formalized here so there's no ambiguity about what's actually live.
-
-**Changed:**
-- Top Card highlight section moved from full-width (above the stats/Recently Added layout) into the right column, sitting directly above Recently Added
-- Top Card highlight redesigned: removed the surrounding card/border box, the thumbnail is now framed directly with a brand-colored border, and sized up from 110px to 170px wide
-
-No functional/behavior changes, purely layout and sizing.
+Catch-up release formalizing two loose-file Dashboard tweaks: Top Card highlight moved into the right column, resized/reframed without the container box.
 
 ## v0.6 (2026-07-21)
 
