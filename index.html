@@ -90,8 +90,86 @@
   }
   .layout {
     display: grid;
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 200px 1fr 260px;
     gap: 20px;
+  }
+  .profile-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    position: relative;
+  }
+  .profile-panel .edit-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px;
+  }
+  .profile-panel .edit-btn:hover { color: var(--accent-light); }
+  .profile-panel .avatar-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 12px;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+  }
+  .profile-panel .avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-panel .display-name {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .profile-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .profile-panel .info-row:first-of-type { border-top: none; }
+  .profile-panel .info-row .k { color: var(--text-muted); }
+  .profile-panel .info-row .v { color: var(--text); font-weight: 500; text-align: right; }
+  .profile-panel .empty-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 10px 0;
+  }
+  #profile-edit-form input, #profile-edit-form select {
+    width: 100%;
+    margin-bottom: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  #profile-edit-form label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .profile-edit-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .profile-edit-actions button { flex: 1; padding: 7px; font-size: 12px; }
+  .profile-edit-actions .cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
   }
   .stat-card {
     background: var(--card);
@@ -118,15 +196,31 @@
     margin: 4px 0 0;
   }
   .set-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
   .set-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 14px;
+    cursor: grab;
+    user-select: none;
+  }
+  .set-card.dragging { opacity: 0.4; }
+  .set-card.drag-over { border-color: var(--accent); }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0 14px;
+  }
+  .sidebar-subhead {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 10px;
   }
   .set-card p.name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
   .set-card p.game { font-size: 11px; color: var(--text-muted); margin: 0 0 8px; }
@@ -406,6 +500,9 @@
       <div class="stat-card"><p class="label">Portfolio value</p><p class="value" id="stat-value">-</p></div>
       <div class="stat-card"><p class="label">Unique cards</p><p class="value" id="stat-unique">-</p><p class="sub" id="stat-sets-sub">-</p></div>
       <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
+      <hr class="sidebar-divider">
+      <p class="sidebar-subhead">Set completion (drag to reorder)</p>
+      <div id="set-grid" class="set-grid"></div>
     </div>
     <div>
       <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId)">
@@ -418,7 +515,7 @@
         </div>
       </div>
 
-      <div class="section-header">
+      <div class="section-header" id="recent-header">
         <h2>Recently added</h2>
         <select id="recent-sort" onchange="renderRecentlyAdded()">
           <option value="date">Sort: Date added</option>
@@ -427,9 +524,34 @@
         </select>
       </div>
       <div id="recent-grid" class="recent-grid"></div>
+    </div>
 
-      <h2>Set completion</h2>
-      <div id="set-grid" class="set-grid"></div>
+    <div>
+      <div class="profile-panel" id="profile-display">
+        <button class="edit-btn" onclick="enterProfileEdit()"><i class="ti ti-pencil" aria-hidden="true"></i> Edit</button>
+        <div class="avatar-wrap"><img id="profile-avatar-img" src="" alt=""></div>
+        <p class="display-name" id="profile-display-name">-</p>
+        <div id="profile-info-rows"></div>
+      </div>
+
+      <div class="profile-panel" id="profile-edit" style="display:none;">
+        <form id="profile-edit-form" onsubmit="saveProfile(event)">
+          <label>Display name</label>
+          <input type="text" id="pf-display-name">
+          <label>Age</label>
+          <input type="number" id="pf-age" min="1" max="120">
+          <label>Location</label>
+          <input type="text" id="pf-location" placeholder="e.g. Noblesville, IN">
+          <label>Gender</label>
+          <input type="text" id="pf-gender">
+          <label>Favorite TCG / set</label>
+          <input type="text" id="pf-favorite-set" placeholder="e.g. Pokemon - Perfect Order">
+          <div class="profile-edit-actions">
+            <button type="submit" class="add-btn">Save</button>
+            <button type="button" class="cancel-btn" onclick="cancelProfileEdit()">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>
@@ -716,6 +838,13 @@
     let cols = Math.min(maxCols, itemCount);
     while (cols > 1 && itemCount % cols !== 0) cols--;
     grid.style.gridTemplateColumns = `repeat(${cols}, ${cardWidth}px)`;
+
+    // Keep the "Recently added" header row (and its sort dropdown) the same
+    // width as the grid actually renders at, so the dropdown's right edge
+    // always lines up with the grid's right edge instead of drifting to the
+    // full column width.
+    const header = document.getElementById('recent-header');
+    if (header) header.style.width = `${cols * cardWidth + (cols - 1) * gap}px`;
   }
 
   window.addEventListener('resize', () => {
@@ -734,6 +863,7 @@
       if (loadedUserId !== session.user.id) {
         loadedUserId = session.user.id;
         loadDashboard(session.user.id);
+        loadProfile(session.user);
       }
     } else {
       loadedUserId = null;
@@ -741,6 +871,92 @@
       document.getElementById('signed-in-view').style.display = 'none';
     }
   });
+
+  let currentProfile = null;
+  let currentAuthUser = null;
+
+  async function loadProfile(user) {
+    currentAuthUser = user;
+    const { data, error } = await supabaseClient
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) { console.error('Profile load error:', error); return; }
+
+    // Fall back to OAuth-provided name/avatar if no profile row exists yet
+    const oauthName = user.user_metadata?.full_name || user.user_metadata?.name || user.email;
+    const oauthAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
+
+    currentProfile = data || {
+      display_name: oauthName,
+      avatar_url: oauthAvatar,
+      age: null,
+      location: null,
+      gender: null,
+      favorite_set: null,
+    };
+
+    renderProfileDisplay();
+  }
+
+  function renderProfileDisplay() {
+    const p = currentProfile;
+    document.getElementById('profile-avatar-img').src = p.avatar_url || '';
+    document.getElementById('profile-display-name').textContent = p.display_name || 'Collector';
+
+    const rows = [
+      ['Age', p.age],
+      ['Location', p.location],
+      ['Gender', p.gender],
+      ['Favorite set', p.favorite_set],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== '');
+
+    const rowsEl = document.getElementById('profile-info-rows');
+    if (rows.length === 0) {
+      rowsEl.innerHTML = '<p class="empty-hint">No profile details yet, click Edit to add some.</p>';
+    } else {
+      rowsEl.innerHTML = rows.map(([k, v]) => `<div class="info-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    }
+  }
+
+  function enterProfileEdit() {
+    const p = currentProfile;
+    document.getElementById('pf-display-name').value = p.display_name || '';
+    document.getElementById('pf-age').value = p.age || '';
+    document.getElementById('pf-location').value = p.location || '';
+    document.getElementById('pf-gender').value = p.gender || '';
+    document.getElementById('pf-favorite-set').value = p.favorite_set || '';
+    document.getElementById('profile-display').style.display = 'none';
+    document.getElementById('profile-edit').style.display = 'block';
+  }
+
+  function cancelProfileEdit() {
+    document.getElementById('profile-display').style.display = 'block';
+    document.getElementById('profile-edit').style.display = 'none';
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    const payload = {
+      user_id: currentAuthUser.id,
+      display_name: document.getElementById('pf-display-name').value.trim(),
+      age: document.getElementById('pf-age').value ? parseInt(document.getElementById('pf-age').value) : null,
+      location: document.getElementById('pf-location').value.trim(),
+      gender: document.getElementById('pf-gender').value.trim(),
+      favorite_set: document.getElementById('pf-favorite-set').value.trim(),
+      avatar_url: currentProfile.avatar_url || '',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabaseClient.from('user_profiles').upsert(payload, { onConflict: 'user_id' });
+    if (error) { console.error('Profile save error:', error); return; }
+
+    currentProfile = payload;
+    renderProfileDisplay();
+    cancelProfileEdit();
+  }
 
   let topCardId = null;
 
@@ -807,8 +1023,9 @@
     // Master sets + completion
     const { data: masterSets, error: masterSetsError } = await supabaseClient
       .from('user_master_sets')
-      .select('sets(id, name, total_cards, games(name))')
-      .eq('user_id', userId);
+      .select('id, sort_order, sets(id, name, total_cards, games(name))')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true, nullsFirst: false });
 
     if (masterSetsError) {
       console.error('Master sets query error:', masterSetsError);
@@ -826,6 +1043,8 @@
       return;
     }
 
+    currentMasterSets = masterSets;
+
     for (const row of masterSets) {
       const set = row.sets;
       // Count how many unique cards from this set the user owns
@@ -839,6 +1058,13 @@
 
       const card = document.createElement('div');
       card.className = 'set-card';
+      card.draggable = true;
+      card.dataset.masterSetId = row.id;
+      card.addEventListener('dragstart', handleSetDragStart);
+      card.addEventListener('dragover', handleSetDragOver);
+      card.addEventListener('dragleave', handleSetDragLeave);
+      card.addEventListener('drop', handleSetDrop);
+      card.addEventListener('dragend', handleSetDragEnd);
       card.innerHTML = `
         <p class="name">${set.name}</p>
         <p class="game">${set.games?.name || ''}</p>
@@ -847,6 +1073,53 @@
       `;
       setGrid.appendChild(card);
     }
+  }
+
+  let currentMasterSets = [];
+  let draggedSetCard = null;
+
+  function handleSetDragStart(e) {
+    draggedSetCard = e.currentTarget;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleSetDragOver(e) {
+    e.preventDefault();
+    if (e.currentTarget !== draggedSetCard) e.currentTarget.classList.add('drag-over');
+  }
+
+  function handleSetDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+
+  async function handleSetDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!draggedSetCard || e.currentTarget === draggedSetCard) return;
+
+    const grid = document.getElementById('set-grid');
+    const cards = Array.from(grid.children);
+    const draggedIdx = cards.indexOf(draggedSetCard);
+    const targetIdx = cards.indexOf(e.currentTarget);
+
+    if (draggedIdx < targetIdx) {
+      e.currentTarget.after(draggedSetCard);
+    } else {
+      e.currentTarget.before(draggedSetCard);
+    }
+
+    // Persist the new order for every card currently in the grid
+    const newOrderIds = Array.from(grid.children).map((el) => el.dataset.masterSetId);
+    const updates = newOrderIds.map((id, idx) =>
+      supabaseClient.from('user_master_sets').update({ sort_order: idx }).eq('id', id)
+    );
+    await Promise.all(updates);
+  }
+
+  function handleSetDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    draggedSetCard = null;
   }
 </script>
 
