@@ -73,7 +73,7 @@
     opacity: 0.5;
   }
   .divider-line .line { width: 30px; height: 1px; background: var(--accent); }
-  #signed-in-view { display: none; padding: 24px; }
+  #signed-in-view { display: none; padding: 24px; max-width: 1260px; margin: 0 auto; }
   .topbar {
     display: flex;
     justify-content: space-between;
@@ -120,8 +120,25 @@
     margin: 0 auto 12px;
     background: var(--bg);
     border: 2px solid var(--accent);
+    position: relative;
+    cursor: pointer;
   }
   .profile-panel .avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-coming-soon {
+    display: none;
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(10, 14, 26, 0.85);
+    color: var(--text);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 6px;
+  }
   .profile-panel .display-name {
     text-align: center;
     font-size: 16px;
@@ -365,8 +382,13 @@
     display: none;
     align-items: center;
     gap: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
     margin-bottom: 24px;
     cursor: pointer;
+    box-sizing: border-box;
   }
   .highlight-section img {
     width: 170px;
@@ -529,7 +551,10 @@
     <div>
       <div class="profile-panel" id="profile-display">
         <button class="edit-btn" onclick="enterProfileEdit()"><i class="ti ti-pencil" aria-hidden="true"></i> Edit</button>
-        <div class="avatar-wrap"><img id="profile-avatar-img" src="" alt=""></div>
+        <div class="avatar-wrap" onclick="toggleAvatarComingSoon(event)">
+          <img id="profile-avatar-img" src="" alt="">
+          <div class="avatar-coming-soon" id="avatar-coming-soon">Custom avatars<br>coming soon</div>
+        </div>
         <p class="display-name" id="profile-display-name">-</p>
         <div id="profile-info-rows"></div>
       </div>
@@ -844,7 +869,12 @@
     // always lines up with the grid's right edge instead of drifting to the
     // full column width.
     const header = document.getElementById('recent-header');
-    if (header) header.style.width = `${cols * cardWidth + (cols - 1) * gap}px`;
+    const gridWidth = cols * cardWidth + (cols - 1) * gap;
+    if (header) header.style.width = `${gridWidth}px`;
+
+    // Same treatment for the Top Card highlight box, so its edges match too.
+    const topCardBox = document.getElementById('top-card-section');
+    if (topCardBox) topCardBox.style.width = `${gridWidth}px`;
   }
 
   window.addEventListener('resize', () => {
@@ -931,6 +961,18 @@
     document.getElementById('profile-display').style.display = 'none';
     document.getElementById('profile-edit').style.display = 'block';
   }
+
+  function toggleAvatarComingSoon(event) {
+    event.stopPropagation();
+    const el = document.getElementById('avatar-coming-soon');
+    const isVisible = el.style.display === 'flex';
+    el.style.display = isVisible ? 'none' : 'flex';
+  }
+
+  document.addEventListener('click', () => {
+    const el = document.getElementById('avatar-coming-soon');
+    if (el) el.style.display = 'none';
+  });
 
   function cancelProfileEdit() {
     document.getElementById('profile-display').style.display = 'block';
