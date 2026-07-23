@@ -1,17 +1,18 @@
 # Release Notes
 
+## v0.7 (2026-07-22)
+
+Catch-up release. Two small Dashboard tweaks that were delivered as loose files after v0.6 rather than through the normal versioned process, formalized here so there's no ambiguity about what's actually live.
+
+**Changed:**
+- Top Card highlight section moved from full-width (above the stats/Recently Added layout) into the right column, sitting directly above Recently Added
+- Top Card highlight redesigned: removed the surrounding card/border box, the thumbnail is now framed directly with a brand-colored border, and sized up from 110px to 170px wide
+
+No functional/behavior changes, purely layout and sizing.
+
 ## v0.6 (2026-07-21)
 
-**CSV import/export (Collection page):**
-- **Export**: "Export CSV" link pulls your entire collection into a downloadable CSV (Game, Set, Card Name, Card Number, Variant, Quantity, Condition).
-- **Import**: "Import CSV" opens a file picker, parses the file (using PapaParse), and matches each row to the catalog by Game + Set + Card Name + Card Number. Matched rows get added/updated in your collection; unmatched rows are listed in a summary panel so you can fix and re-import just those.
-- **Template**: "Template" link downloads a prefilled example CSV (`collection-import-template.csv`) showing the expected column format.
-- New file to upload: `collection-import-template.csv` (repo root, same folder as `index.html`).
-
-**Dashboard highlight:**
-- New "Top card in your collection" section above the stats/Recently Added layout, shows your single highest-value owned card with a larger thumbnail, name, set, and price. Click it to open the full card detail panel. Reuses the same collection data already being fetched for the portfolio value calculation, no extra query needed.
-
-**Process note:** both files were run through a Node.js syntax check before delivery this round, to catch the kind of JS errors (like the earlier naming collision) before they reach the live site instead of after.
+CSV import/export on the Collection page with a prefilled template file and catalog-matching on import, plus a Dashboard "Top card in your collection" highlight section with a larger thumbnail.
 
 ## v0.5 (2026-07-21)
 
