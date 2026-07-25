@@ -1,17 +1,20 @@
 # Release Notes
 
-## v0.11 (2026-07-25)
+## v0.12 (2026-07-25)
 
 **Added:**
-- Purchase price field, alongside Estimated Grade and Trade Available, on owned cards
-- Spend vs. value chart on the Dashboard (under the profile panel): a line showing cumulative amount spent over time, with a dashed reference line at your current portfolio value, plus a Spent/Value/Gain-or-Loss summary. Shows an empty-state message if no cards have a purchase price yet.
-- New `purchase_price` column on `user_collection`.
-
-**Fixed:**
-- The "Your copy" fields (Purchase price, Grade, Trade Available) were sitting in their own section far down the detail panel, leaving a large empty gap next to the card image up top. Moved them into that empty space instead, right below the set name.
+- New Binders page (`binders.html`): create binders with a name/number, brand (Ultra PRO, Dragon Shield, Vault X, BCW, Ultimate Guard, or Other with free text), and a free color picker. Shows a grid of your binders with card counts, click into one to see its assigned cards and remove any if needed.
+- "Binders" link added to the Dashboard and Collection nav.
+- Binder assignment added to the "Your copy" section in the card detail panel (both Dashboard and Collection), pick a binder from a dropdown and Save alongside grade/trade/purchase price.
+- New `binders` table and `binder_id` column on `user_collection`.
 
 **Setup required:**
-- Run `schema_addition_v7.sql` in Supabase (adds `purchase_price`)
+- Run `schema_addition_v8.sql` in Supabase
+- Upload `binders.html` (new file) along with the updated `index.html` and `collection.html`
+
+## v0.11 (2026-07-25)
+
+Added purchase price field + spend-vs-value line chart on the Dashboard. Fixed a layout gap by moving the "Your copy" fields into the empty header space next to the card image.
 
 ## v0.10 (2026-07-24)
 
@@ -27,15 +30,15 @@ Sized up card thumbnails: Collection search 44px -> 64px, detail panel 120px -> 
 
 ## v0.9.6 (2026-07-23)
 
-Fixed Recently Added / Top Card spacing properly, cards stretch evenly to fill actual column width.
+Fixed Recently Added / Top Card spacing properly.
 
 ## v0.9.5 (2026-07-23)
 
-Added avatar "coming soon" overlay. Capped/centered page width for equal column gaps. Restored Top Card highlight box styling.
+Added avatar "coming soon" overlay. Capped/centered page width for equal column gaps.
 
 ## v0.9 (2026-07-22)
 
-Fixed Recently Added header/dropdown width alignment. Added a right-hand Dashboard profile panel with display+edit modes. Moved Set Completion into the left sidebar, made it drag-to-reorder with persisted order.
+Added a right-hand Dashboard profile panel. Moved Set Completion into the left sidebar, made it drag-to-reorder.
 
 ## v0.8 (2026-07-22)
 

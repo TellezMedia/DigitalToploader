@@ -515,6 +515,7 @@
       <span style="font-size: 15px; font-weight: 600; margin-right: 24px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></span>
       <a href="index.html" style="color: var(--accent); font-weight: 600; text-decoration: none; margin-right: 16px; font-size: 14px;">Dashboard</a>
       <a href="collection.html" style="color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px;">Collection</a>
+      <a href="binders.html" style="color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px;">Binders</a>
     </div>
     <div>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin: 0 12px;"></span>
@@ -677,16 +678,20 @@
       .from('user_watchlist').select('id, target_price').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
 
     let ownedRow = null;
+    let userBinders = [];
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
+      const { data: binders } = await supabaseClient
+        .from('binders').select('id, name').eq('user_id', loadedUserId).order('created_at', { ascending: true });
+      userBinders = binders || [];
     }
 
-    renderCardDetail(card, !!wishlistRow, !!watchlistRow, ownedRow);
+    renderCardDetail(card, !!wishlistRow, !!watchlistRow, ownedRow, userBinders);
   }
 
-  function renderCardDetail(card, onWishlist, onWatchlist, ownedRow) {
+  function renderCardDetail(card, onWishlist, onWatchlist, ownedRow, userBinders) {
     const variants = card.latest_prices || [];
     const primary = variants[0];
     const maxPrice = Math.max(...variants.map((v) => Number(v.market_price) || 0), 0.01);
@@ -727,6 +732,11 @@
               <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
               Available for trade
             </label>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Binder</label>
+            <select id="detail-binder-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              <option value="">Unassigned</option>
+              ${userBinders.map((b) => `<option value="${b.id}" ${ownedRow.binder_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
+            </select>
             <button class="add-btn" style="width:100%; padding:6px;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
           </div>
           ` : ''}
@@ -825,10 +835,12 @@
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
     const priceInput = document.getElementById('detail-purchase-price-input').value;
     const purchasePrice = priceInput ? parseFloat(priceInput) : null;
+    const binderSelect = document.getElementById('detail-binder-select');
+    const binderId = binderSelect && binderSelect.value ? binderSelect.value : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable, purchase_price: purchasePrice })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, purchase_price: purchasePrice, binder_id: binderId })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital TopLoader – Binders</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #14213D;
+    --card: #1B2A4D;
+    --border: #2A3A5C;
+    --text: #E6E8EE;
+    --text-muted: #8890a6;
+    --accent: #2E86FF;
+    --accent-light: #39D0FF;
+    --gold: #F6C453;
+    --danger: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #signed-out-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #signed-out-view button {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #signed-in-view { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .topbar a { color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px; }
+  .topbar a.active { color: var(--accent); font-weight: 600; }
+  .topbar button {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 4px; }
+  input[type=text], select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  input[type=color] {
+    width: 60px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    padding: 2px;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+  .form-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .form-row > div { flex: 1; min-width: 140px; }
+  .add-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .binder-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .binder-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .binder-card.active-binder { border-color: var(--accent); }
+  .binder-card .swatch { height: 8px; }
+  .binder-card .info { padding: 12px; }
+  .binder-card .name { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  .binder-card .meta { font-size: 12px; color: var(--text-muted); margin: 0; }
+  .card-list-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+  }
+  .binder-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+  }
+  .binder-item img, .binder-item .thumb-placeholder {
+    width: 100%;
+    aspect-ratio: 5 / 7;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: var(--bg);
+  }
+  .binder-item .name { font-size: 11px; font-weight: 500; margin: 0 0 6px; line-height: 1.3; }
+  .binder-item .remove-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--danger);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    width: 100%;
+  }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="signed-out-view">
+  <div style="text-align:center;">
+    <p style="font-size:15px; font-weight:600; margin-bottom:16px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></p>
+    <button onclick="signInWithGoogle()">Sign in with Google</button>
+  </div>
+</div>
+
+<div id="signed-in-view">
+  <div class="topbar">
+    <div style="display: flex; align-items: center;">
+      <span style="font-size: 15px; font-weight: 600; margin-right: 24px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></span>
+      <a href="index.html">Dashboard</a>
+      <a href="collection.html">Collection</a>
+      <a href="binders.html" class="active">Binders</a>
+    </div>
+    <div>
+      <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <h2>New binder</h2>
+  <div class="panel">
+    <div class="form-row">
+      <div>
+        <label>Name / number</label>
+        <input type="text" id="bf-name" placeholder="e.g. Binder 3">
+      </div>
+      <div>
+        <label>Brand</label>
+        <select id="bf-brand" onchange="toggleOtherBrand()">
+          <option>Ultra PRO</option>
+          <option>Dragon Shield</option>
+          <option>Vault X</option>
+          <option>BCW</option>
+          <option>Ultimate Guard</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div id="bf-other-wrap" style="display:none;">
+        <label>Brand name</label>
+        <input type="text" id="bf-other-brand" placeholder="Brand name">
+      </div>
+      <div style="flex:0;">
+        <label>Color</label>
+        <input type="color" id="bf-color" value="#2E86FF">
+      </div>
+      <div style="flex:0;">
+        <button class="add-btn" onclick="createBinder()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>Your binders</h2>
+  <div id="binder-grid" class="binder-grid"></div>
+
+  <div id="binder-detail" style="display:none;">
+    <h2 id="binder-detail-title">Binder</h2>
+    <div id="binder-detail-cards" class="card-list-grid"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUserId = null;
+  let activeBinderId = null;
+
+  async function signInWithGoogle() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+    if (error) console.error('Sign-in error:', error);
+  }
+
+  async function signOut() {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  }
+
+  function toggleOtherBrand() {
+    const isOther = document.getElementById('bf-brand').value === 'Other';
+    document.getElementById('bf-other-wrap').style.display = isOther ? 'block' : 'none';
+  }
+
+  async function createBinder() {
+    const name = document.getElementById('bf-name').value.trim();
+    if (!name) { alert('Give the binder a name or number.'); return; }
+    const brandSelect = document.getElementById('bf-brand').value;
+    const brand = brandSelect === 'Other' ? document.getElementById('bf-other-brand').value.trim() : brandSelect;
+    const color = document.getElementById('bf-color').value;
+
+    const { error } = await supabaseClient.from('binders').insert({ user_id: currentUserId, name, brand, color });
+    if (error) { console.error('Create binder error:', error); return; }
+
+    document.getElementById('bf-name').value = '';
+    document.getElementById('bf-other-brand').value = '';
+    loadBinders();
+  }
+
+  async function loadBinders() {
+    const { data: binders, error } = await supabaseClient
+      .from('binders').select('id, name, brand, color').eq('user_id', currentUserId).order('created_at', { ascending: true });
+
+    const grid = document.getElementById('binder-grid');
+    if (error) { grid.innerHTML = '<div class="empty">Couldn\'t load binders.</div>'; return; }
+    if (!binders || binders.length === 0) {
+      grid.innerHTML = '<div class="empty">No binders yet, create one above.</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    for (const b of binders) {
+      const { count } = await supabaseClient
+        .from('user_collection').select('id', { count: 'exact', head: true }).eq('binder_id', b.id);
+
+      const el = document.createElement('div');
+      el.className = 'binder-card' + (b.id === activeBinderId ? ' active-binder' : '');
+      el.onclick = () => openBinder(b.id, b.name);
+      el.innerHTML = `
+        <div class="swatch" style="background:${b.color || '#2E86FF'};"></div>
+        <div class="info">
+          <p class="name">${b.name}</p>
+          <p class="meta">${b.brand || ''}${b.brand ? ' · ' : ''}${count || 0} cards</p>
+        </div>
+      `;
+      grid.appendChild(el);
+    }
+  }
+
+  async function openBinder(binderId, binderName) {
+    activeBinderId = binderId;
+    loadBinders();
+    document.getElementById('binder-detail').style.display = 'block';
+    document.getElementById('binder-detail-title').textContent = binderName;
+    const container = document.getElementById('binder-detail-cards');
+    container.innerHTML = '<div class="empty">Loading...</div>';
+
+    const { data: rows, error } = await supabaseClient
+      .from('user_collection')
+      .select('id, cards(name, card_number, image_url)')
+      .eq('binder_id', binderId);
+
+    if (error) { container.innerHTML = '<div class="empty">Couldn\'t load cards.</div>'; return; }
+    if (!rows || rows.length === 0) {
+      container.innerHTML = '<div class="empty">No cards in this binder yet. Assign cards from a card\'s detail view.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    for (const row of rows) {
+      const card = row.cards;
+      const el = document.createElement('div');
+      el.className = 'binder-item';
+      el.innerHTML = `
+        ${card.image_url ? `<img src="${card.image_url}" alt="">` : `<div class="thumb-placeholder"></div>`}
+        <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}</p>
+        <button class="remove-btn" onclick="removeFromBinder('${row.id}')">Remove</button>
+      `;
+      container.appendChild(el);
+    }
+  }
+
+  async function removeFromBinder(collectionRowId) {
+    await supabaseClient.from('user_collection').update({ binder_id: null }).eq('id', collectionRowId);
+    openBinder(activeBinderId, document.getElementById('binder-detail-title').textContent);
+    loadBinders();
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      currentUserId = session.user.id;
+      document.getElementById('signed-out-view').style.display = 'none';
+      document.getElementById('signed-in-view').style.display = 'block';
+      document.getElementById('user-email').textContent = session.user.email;
+      loadBinders();
+    } else {
+      document.getElementById('signed-out-view').style.display = 'flex';
+      document.getElementById('signed-in-view').style.display = 'none';
+    }
+  });
+</script>
+
+</body>
+</html>
