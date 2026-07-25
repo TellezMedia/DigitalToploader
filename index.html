@@ -250,6 +250,22 @@
   .progress-fill { height: 100%; background: var(--accent); }
   h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
   .empty { color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center; }
+  .purchase-log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .purchase-log-item:first-child { border-top: none; }
+  .purchase-log-item .remove-x {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+  }
   select {
     background: var(--card);
     border: 1px solid var(--border);
@@ -317,7 +333,7 @@
     cursor: pointer;
     float: right;
   }
-  .detail-header { display: flex; gap: 16px; margin-bottom: 16px; }
+  .detail-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
   .detail-header img { width: 240px; border-radius: 8px; }
   .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
   .badge {
@@ -471,6 +487,17 @@
     gap: 6px;
     text-decoration: none;
   }
+@media (max-width: 820px) {
+  #signed-in-view { padding: 12px; }
+  .topbar { flex-wrap: wrap; gap: 10px; }
+  .layout { grid-template-columns: 1fr; }
+  .highlight-section { flex-wrap: wrap; justify-content: center; text-align: center; }
+  .highlight-section img { width: 120px; }
+  .detail-header { flex-direction: column; align-items: center; text-align: center; }
+  .detail-header img { width: 180px; }
+  .detail-panel { max-width: 100%; }
+  .set-grid, .recent-grid { justify-content: center; }
+}
 </style>
 </head>
 <body>
@@ -589,6 +616,25 @@
       <div class="profile-panel" id="spend-value-panel" style="margin-top:14px;">
         <p class="section-label">Spent vs. value</p>
         <div id="spend-value-content"></div>
+      </div>
+
+      <div class="profile-panel" id="log-purchase-panel" style="margin-top:14px;">
+        <p class="section-label">Log a purchase</p>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Set</label>
+        <select id="purchase-set-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Product</label>
+        <select id="purchase-product-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+          <option>Booster Box</option>
+          <option>Elite Trainer Box</option>
+          <option>Blister Pack</option>
+          <option>Bundle</option>
+          <option>Tin</option>
+          <option value="Other">Other</option>
+        </select>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Price paid</label>
+        <input type="number" id="purchase-price-input" min="0" step="0.01" placeholder="e.g. 149.99" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+        <button class="add-btn" style="width:100%; padding:7px;" onclick="logProductPurchase()">Add purchase</button>
+        <div id="purchase-log-list" style="margin-top:12px;"></div>
       </div>
     </div>
   </div>
@@ -724,11 +770,8 @@
           ${ownedRow ? `
           <div style="margin-top:16px;">
             <p class="section-label" style="margin-bottom:8px;">Your copy</p>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Purchase price</label>
-            <input type="number" id="detail-purchase-price-input" min="0" step="0.01" value="${ownedRow.purchase_price ?? ''}" placeholder="e.g. 12.50" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
             <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Estimated grade</label>
-            <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
-            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
+            <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
               <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
               Available for trade
             </label>
@@ -833,14 +876,12 @@
     const gradeInput = document.getElementById('detail-grade-input').value;
     const grade = gradeInput ? parseFloat(gradeInput) : null;
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
-    const priceInput = document.getElementById('detail-purchase-price-input').value;
-    const purchasePrice = priceInput ? parseFloat(priceInput) : null;
     const binderSelect = document.getElementById('detail-binder-select');
     const binderId = binderSelect && binderSelect.value ? binderSelect.value : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable, purchase_price: purchasePrice, binder_id: binderId })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }
@@ -949,6 +990,8 @@
         loadedUserId = session.user.id;
         loadDashboard(session.user.id);
         loadProfile(session.user);
+        loadSetsForPurchaseDropdown();
+        loadPurchaseLog(session.user.id);
       }
     } else {
       loadedUserId = null;
@@ -1060,21 +1103,20 @@
 
   async function loadSpendValueChart(userId, currentPortfolioValue) {
     const { data, error } = await supabaseClient
-      .from('user_collection')
-      .select('added_at, purchase_price, quantity')
+      .from('product_purchases')
+      .select('purchased_at, price_paid')
       .eq('user_id', userId)
-      .not('purchase_price', 'is', null)
-      .order('added_at', { ascending: true });
+      .order('purchased_at', { ascending: true });
 
     const container = document.getElementById('spend-value-content');
     if (error || !data || data.length === 0) {
-      container.innerHTML = '<p class="empty" style="padding:6px 0; font-size:12px;">Add a purchase price to your cards to see this chart.</p>';
+      container.innerHTML = '<p class="empty" style="padding:6px 0; font-size:12px;">Log a product purchase below to see this chart.</p>';
       return;
     }
 
     let cumulative = 0;
     const points = data.map((row) => {
-      cumulative += (Number(row.purchase_price) || 0) * (row.quantity || 1);
+      cumulative += Number(row.price_paid) || 0;
       return cumulative;
     });
 
@@ -1106,6 +1148,73 @@
       </div>
       <div style="text-align:center; margin-top:6px; font-size:13px; font-weight:600; color:${gainColor};">${gainLabel}</div>
     `;
+  }
+
+  async function loadSetsForPurchaseDropdown() {
+    const { data: games } = await supabaseClient.from('games').select('id, name').order('name');
+    const select = document.getElementById('purchase-set-select');
+    if (!select || !games) return;
+    select.innerHTML = '';
+    for (const g of games) {
+      const { data: sets } = await supabaseClient.from('sets').select('id, name').eq('game_id', g.id).order('name');
+      if (!sets || sets.length === 0) continue;
+      const group = document.createElement('optgroup');
+      group.label = g.name;
+      for (const s of sets) {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        group.appendChild(opt);
+      }
+      select.appendChild(group);
+    }
+  }
+
+  async function logProductPurchase() {
+    const setId = document.getElementById('purchase-set-select').value;
+    const productType = document.getElementById('purchase-product-select').value;
+    const priceInput = document.getElementById('purchase-price-input').value;
+    const price = priceInput ? parseFloat(priceInput) : null;
+
+    if (!setId || !price) { alert('Choose a set and enter a price paid.'); return; }
+
+    const { error } = await supabaseClient
+      .from('product_purchases')
+      .insert({ user_id: loadedUserId, set_id: setId, product_type: productType, price_paid: price });
+
+    if (error) { console.error('Log purchase error:', error); return; }
+
+    document.getElementById('purchase-price-input').value = '';
+    loadPurchaseLog(loadedUserId);
+    loadDashboard(loadedUserId);
+  }
+
+  async function loadPurchaseLog(userId) {
+    const { data, error } = await supabaseClient
+      .from('product_purchases')
+      .select('id, product_type, price_paid, purchased_at, sets(name)')
+      .eq('user_id', userId)
+      .order('purchased_at', { ascending: false })
+      .limit(10);
+
+    const list = document.getElementById('purchase-log-list');
+    if (error || !data || data.length === 0) {
+      list.innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = data.map((row) => `
+      <div class="purchase-log-item">
+        <span>${row.sets?.name || 'Unknown set'} · ${row.product_type} · $${Number(row.price_paid).toFixed(2)}</span>
+        <button class="remove-x" onclick="removeProductPurchase('${row.id}')" title="Remove"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+    `).join('');
+  }
+
+  async function removeProductPurchase(id) {
+    await supabaseClient.from('product_purchases').delete().eq('id', id);
+    loadPurchaseLog(loadedUserId);
+    loadDashboard(loadedUserId);
   }
 
   async function loadDashboard(userId) {
