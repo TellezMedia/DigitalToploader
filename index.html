@@ -272,7 +272,6 @@
     margin-bottom: 28px;
   }
   .recent-card {
-    width: 130px;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -856,25 +855,18 @@
   function layoutRecentGrid(itemCount) {
     const grid = document.getElementById('recent-grid');
     if (!grid || itemCount === 0) return;
-    const cardWidth = 130;
+    const targetCardWidth = 130; // just a guide for choosing how many columns fit
     const gap = 12;
     const containerWidth = grid.clientWidth || grid.parentElement.clientWidth || 700;
-    const maxCols = Math.max(1, Math.floor((containerWidth + gap) / (cardWidth + gap)));
+    const maxCols = Math.max(1, Math.floor((containerWidth + gap) / (targetCardWidth + gap)));
     let cols = Math.min(maxCols, itemCount);
     while (cols > 1 && itemCount % cols !== 0) cols--;
-    grid.style.gridTemplateColumns = `repeat(${cols}, ${cardWidth}px)`;
 
-    // Keep the "Recently added" header row (and its sort dropdown) the same
-    // width as the grid actually renders at, so the dropdown's right edge
-    // always lines up with the grid's right edge instead of drifting to the
-    // full column width.
-    const header = document.getElementById('recent-header');
-    const gridWidth = cols * cardWidth + (cols - 1) * gap;
-    if (header) header.style.width = `${gridWidth}px`;
-
-    // Same treatment for the Top Card highlight box, so its edges match too.
-    const topCardBox = document.getElementById('top-card-section');
-    if (topCardBox) topCardBox.style.width = `${gridWidth}px`;
+    // Cards stretch evenly to fill the full column width (no fixed pixel
+    // width), so there's no leftover slack and nothing to separately sync,
+    // the header row and Top Card box above are already 100% of this same
+    // container, so everything lines up naturally.
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
   }
 
   window.addEventListener('resize', () => {

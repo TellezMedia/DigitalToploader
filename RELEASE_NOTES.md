@@ -1,15 +1,13 @@
 # Release Notes
 
-## v0.9.5 (2026-07-23)
-
-Small follow-up round, no database changes.
-
-**Added:**
-- Clicking the profile picture shows a small "Custom avatars coming soon" overlay directly over the avatar circle. Click anywhere to dismiss.
+## v0.9.6 (2026-07-23)
 
 **Fixed:**
-- Layout gaps: the page is now capped and centered at a max width, so the left↔center and center↔right column gaps read as equal instead of the right gap drifting wider on large screens.
-- Top Card highlight box styling restored (background, border, padding), and its width is now synced to match the Recently Added grid and header exactly, so all three line up on the same right edge.
+- Recently Added / Top Card spacing: removed the pixel-width syncing hack introduced in v0.9/v0.9.5 (which synced the header and Top Card box to an approximate fixed width, leaving a small leftover gap on the right side). Replaced it with cards that stretch evenly to fill the actual column width. Since the header row and Top Card box are already 100% width of that same shared container, everything now lines up naturally with no separate syncing logic needed.
+
+## v0.9.5 (2026-07-23)
+
+Added avatar "coming soon" overlay. Capped/centered page width for equal column gaps (partial fix, refined further in v0.9.6). Restored Top Card highlight box styling.
 
 ## v0.9 (2026-07-22)
 
