@@ -1,16 +1,21 @@
 # Release Notes
 
-## v0.10 (2026-07-24)
+## v0.11 (2026-07-25)
 
 **Added:**
-- Estimated Grade (manual entry, e.g. 9.5) and Available for Trade toggle, shown in the card detail panel for cards you actually own (My Collection, Recently Added, Top Card highlight). Not shown when browsing/searching cards you don't own yet, since there's nothing to grade.
-- New `estimated_grade` and `trade_available` columns on `user_collection`.
+- Purchase price field, alongside Estimated Grade and Trade Available, on owned cards
+- Spend vs. value chart on the Dashboard (under the profile panel): a line showing cumulative amount spent over time, with a dashed reference line at your current portfolio value, plus a Spent/Value/Gain-or-Loss summary. Shows an empty-state message if no cards have a purchase price yet.
+- New `purchase_price` column on `user_collection`.
 
-**Changed:**
-- Moved the "Add to Collection" button from the Dashboard topbar to directly under the profile panel on the right.
+**Fixed:**
+- The "Your copy" fields (Purchase price, Grade, Trade Available) were sitting in their own section far down the detail panel, leaving a large empty gap next to the card image up top. Moved them into that empty space instead, right below the set name.
 
 **Setup required:**
-- Run `schema_addition_v6.sql` in Supabase (adds the two new columns)
+- Run `schema_addition_v7.sql` in Supabase (adds `purchase_price`)
+
+## v0.10 (2026-07-24)
+
+Added Estimated Grade + Trade Available fields on owned cards. Moved Add to Collection button from topbar to under the profile panel.
 
 ## v0.9.8 (2026-07-24)
 
@@ -34,27 +39,27 @@ Fixed Recently Added header/dropdown width alignment. Added a right-hand Dashboa
 
 ## v0.8 (2026-07-22)
 
-Replaced an earlier centered-row fix for Recently Added with a better approach: grid picks a column count that divides evenly into the number of cards shown.
+Replaced an earlier centered-row fix for Recently Added with a better approach.
 
 ## v0.7 (2026-07-22)
 
-Catch-up release formalizing two loose-file Dashboard tweaks: Top Card highlight moved into the right column, resized/reframed.
+Catch-up release: Top Card highlight moved into the right column, resized/reframed.
 
 ## v0.6 (2026-07-21)
 
-CSV import/export on the Collection page, plus a Dashboard "Top card in your collection" highlight section.
+CSV import/export on the Collection page, plus a Dashboard Top Card highlight section.
 
 ## v0.5 (2026-07-21)
 
-Variant/subtype price tracking fix, full card detail panel, Discord/GitHub/email sign-in, brand-gradient Add to Collection button.
+Variant/subtype price tracking fix, full card detail panel, Discord/GitHub/email sign-in.
 
 ## v0.4 (2026-07-21)
 
-Dashboard Recently Added widget with sort, richer set completion bars, Collection page restructured into collapsible Game>Set hierarchy, GitHub Actions nightly price automation.
+Dashboard Recently Added widget with sort, Collection page restructured into collapsible Game>Set hierarchy, GitHub Actions nightly price automation.
 
 ## v0.3 (2026-07-21)
 
-Fixed sign-in collision bug, fixed duplicate dropdown bug, added card images, full brand redesign, SEO title updates.
+Fixed sign-in collision bug, fixed duplicate dropdown bug, added card images, full brand redesign.
 
 ## v0.2 (2026-07-21)
 

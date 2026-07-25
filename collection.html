@@ -319,6 +319,13 @@
     letter-spacing: 0.03em;
     margin: 0 0 8px;
   }
+  .section-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 10px;
+  }
   .detail-price-row { display: flex; justify-content: space-between; align-items: center; }
   .detail-price-row .amount { font-size: 22px; font-weight: 600; }
   .detail-price-row a { color: var(--accent-light); font-size: 12px; text-decoration: none; }
@@ -523,7 +530,7 @@
     let ownedRow = null;
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
     }
 
@@ -560,6 +567,20 @@
           </div>
           <h3>${card.name}</h3>
           <p class="subtitle">${card.sets?.name || ''}${card.card_number ? ' #' + card.card_number : ''}</p>
+          ${ownedRow ? `
+          <div style="margin-top:16px;">
+            <p class="section-label" style="margin-bottom:8px;">Your copy</p>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Purchase price</label>
+            <input type="number" id="detail-purchase-price-input" min="0" step="0.01" value="${ownedRow.purchase_price ?? ''}" placeholder="e.g. 12.50" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Estimated grade</label>
+            <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
+              <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
+              Available for trade
+            </label>
+            <button class="add-btn" style="width:100%; padding:6px;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
+          </div>
+          ` : ''}
         </div>
       </div>
 
@@ -602,19 +623,6 @@
         </div>
       </div>
 
-      ${ownedRow ? `
-      <div class="detail-section">
-        <p class="label">Your copy</p>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Estimated grade</label>
-        <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px; cursor:pointer;">
-          <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
-          Available for trade
-        </label>
-        <button class="add-btn" style="width:100%;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
-      </div>
-      ` : ''}
-
       <div class="detail-actions">
         <button class="add-btn" onclick="addCard('${card.id}'); closeCardDetail();">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
@@ -645,10 +653,12 @@
     const gradeInput = document.getElementById('detail-grade-input').value;
     const grade = gradeInput ? parseFloat(gradeInput) : null;
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
+    const priceInput = document.getElementById('detail-purchase-price-input').value;
+    const purchasePrice = priceInput ? parseFloat(priceInput) : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, purchase_price: purchasePrice })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }

@@ -344,6 +344,13 @@
     letter-spacing: 0.03em;
     margin: 0 0 8px;
   }
+  .section-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 10px;
+  }
   .detail-price-row { display: flex; justify-content: space-between; align-items: center; }
   .detail-price-row .amount { font-size: 22px; font-weight: 600; }
   .detail-price-row a { color: var(--accent-light); font-size: 12px; text-decoration: none; }
@@ -577,6 +584,11 @@
       </div>
 
       <a class="add-collection-btn" href="collection.html" style="justify-content:center; margin-top:14px; width:100%;"><i class="ti ti-plus" aria-hidden="true"></i> Add to Collection</a>
+
+      <div class="profile-panel" id="spend-value-panel" style="margin-top:14px;">
+        <p class="section-label">Spent vs. value</p>
+        <div id="spend-value-content"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -667,7 +679,7 @@
     let ownedRow = null;
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
     }
 
@@ -704,6 +716,20 @@
           </div>
           <h3>${card.name}</h3>
           <p class="subtitle">${card.sets?.name || ''}${card.card_number ? ' #' + card.card_number : ''}</p>
+          ${ownedRow ? `
+          <div style="margin-top:16px;">
+            <p class="section-label" style="margin-bottom:8px;">Your copy</p>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Purchase price</label>
+            <input type="number" id="detail-purchase-price-input" min="0" step="0.01" value="${ownedRow.purchase_price ?? ''}" placeholder="e.g. 12.50" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Estimated grade</label>
+            <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
+              <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
+              Available for trade
+            </label>
+            <button class="add-btn" style="width:100%; padding:6px;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
+          </div>
+          ` : ''}
         </div>
       </div>
 
@@ -745,19 +771,6 @@
           <a href="https://www.cgccards.com/population-report/" target="_blank" rel="noopener">CGC <i class="ti ti-external-link" aria-hidden="true"></i></a>
         </div>
       </div>
-
-      ${ownedRow ? `
-      <div class="detail-section">
-        <p class="label">Your copy</p>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Estimated grade</label>
-        <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px; cursor:pointer;">
-          <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
-          Available for trade
-        </label>
-        <button class="add-btn" style="width:100%;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
-      </div>
-      ` : ''}
 
       <div class="detail-actions">
         <button class="add-btn" onclick="addCardFromDashboard('${card.id}')">Add to Collection</button>
@@ -810,14 +823,17 @@
     const gradeInput = document.getElementById('detail-grade-input').value;
     const grade = gradeInput ? parseFloat(gradeInput) : null;
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
+    const priceInput = document.getElementById('detail-purchase-price-input').value;
+    const purchasePrice = priceInput ? parseFloat(priceInput) : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, purchase_price: purchasePrice })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }
     closeCardDetail();
+    loadDashboard(loadedUserId);
   }
 
   async function toggleWatchlistDetail(cardId) {
@@ -1030,6 +1046,56 @@
   let topCardId = null;
   let topCardRowId = null;
 
+  async function loadSpendValueChart(userId, currentPortfolioValue) {
+    const { data, error } = await supabaseClient
+      .from('user_collection')
+      .select('added_at, purchase_price, quantity')
+      .eq('user_id', userId)
+      .not('purchase_price', 'is', null)
+      .order('added_at', { ascending: true });
+
+    const container = document.getElementById('spend-value-content');
+    if (error || !data || data.length === 0) {
+      container.innerHTML = '<p class="empty" style="padding:6px 0; font-size:12px;">Add a purchase price to your cards to see this chart.</p>';
+      return;
+    }
+
+    let cumulative = 0;
+    const points = data.map((row) => {
+      cumulative += (Number(row.purchase_price) || 0) * (row.quantity || 1);
+      return cumulative;
+    });
+
+    const totalSpent = cumulative;
+    const gain = currentPortfolioValue - totalSpent;
+
+    const w = 220, h = 110, padL = 8, padB = 18, padT = 8, padR = 8;
+    const maxY = Math.max(totalSpent, currentPortfolioValue, 1) * 1.1;
+    const chartW = w - padL - padR;
+    const chartH = h - padT - padB;
+
+    const xStep = points.length > 1 ? chartW / (points.length - 1) : 0;
+    const yScale = (val) => padT + chartH - (val / maxY) * chartH;
+
+    const pathD = points.map((val, i) => `${i === 0 ? 'M' : 'L'} ${padL + i * xStep} ${yScale(val)}`).join(' ');
+    const valueY = yScale(currentPortfolioValue);
+
+    const gainColor = gain >= 0 ? '#4caf50' : '#e05a5a';
+    const gainLabel = gain >= 0 ? `+$${gain.toFixed(2)}` : `-$${Math.abs(gain).toFixed(2)}`;
+
+    container.innerHTML = `
+      <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <line x1="${padL}" y1="${valueY}" x2="${w - padR}" y2="${valueY}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="4,3" />
+        <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2" />
+      </svg>
+      <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
+        <span style="color:var(--text-muted);">Spent: <strong style="color:var(--text);">$${totalSpent.toFixed(2)}</strong></span>
+        <span style="color:var(--text-muted);">Value: <strong style="color:var(--gold);">$${currentPortfolioValue.toFixed(2)}</strong></span>
+      </div>
+      <div style="text-align:center; margin-top:6px; font-size:13px; font-weight:600; color:${gainColor};">${gainLabel}</div>
+    `;
+  }
+
   async function loadDashboard(userId) {
     // Pull the user's collection, joined with card + latest price
     const { data: collection, error: collectionError } = await supabaseClient
@@ -1060,6 +1126,7 @@
     }
 
     document.getElementById('stat-value').textContent = '$' + portfolioValue.toFixed(2);
+    loadSpendValueChart(userId, portfolioValue);
     document.getElementById('stat-unique').textContent = uniqueCards;
     document.getElementById('stat-total').textContent = totalCards;
 
