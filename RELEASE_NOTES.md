@@ -1,9 +1,13 @@
 # Release Notes
 
-## v0.9.7 (2026-07-24)
+## v0.9.8 (2026-07-24)
 
 **Changed:**
-- Sized up card thumbnails to actually take advantage of the high-res images imported earlier. Collection search result thumbnails: 44px → 64px wide. Card detail panel image (the popup when you click a card): 120px → 170px wide. No functional changes, this is purely a display-size update so the sharper images are actually visible.
+- Card detail panel image bumped up again: 170px → 240px. Confirmed the underlying high-res images (from the pokemontcg.io/Scryfall/Lorcast import) run around 734x1024px, so there's plenty of resolution headroom for this size without any quality loss.
+
+## v0.9.7 (2026-07-24)
+
+Sized up card thumbnails to actually take advantage of the high-res images imported earlier. Collection search result thumbnails: 44px -> 64px. Card detail panel image: 120px -> 170px.
 
 ## v0.9.6 (2026-07-23)
 
