@@ -1,17 +1,28 @@
 # Release Notes
 
-## v0.9.8 (2026-07-24)
+## v0.10 (2026-07-24)
+
+**Added:**
+- Estimated Grade (manual entry, e.g. 9.5) and Available for Trade toggle, shown in the card detail panel for cards you actually own (My Collection, Recently Added, Top Card highlight). Not shown when browsing/searching cards you don't own yet, since there's nothing to grade.
+- New `estimated_grade` and `trade_available` columns on `user_collection`.
 
 **Changed:**
-- Card detail panel image bumped up again: 170px → 240px. Confirmed the underlying high-res images (from the pokemontcg.io/Scryfall/Lorcast import) run around 734x1024px, so there's plenty of resolution headroom for this size without any quality loss.
+- Moved the "Add to Collection" button from the Dashboard topbar to directly under the profile panel on the right.
+
+**Setup required:**
+- Run `schema_addition_v6.sql` in Supabase (adds the two new columns)
+
+## v0.9.8 (2026-07-24)
+
+Bumped card detail panel image 170px -> 240px.
 
 ## v0.9.7 (2026-07-24)
 
-Sized up card thumbnails to actually take advantage of the high-res images imported earlier. Collection search result thumbnails: 44px -> 64px. Card detail panel image: 120px -> 170px.
+Sized up card thumbnails: Collection search 44px -> 64px, detail panel 120px -> 170px.
 
 ## v0.9.6 (2026-07-23)
 
-Fixed Recently Added / Top Card spacing properly, removed the pixel-width syncing hack and replaced it with cards that stretch evenly to fill the actual column width.
+Fixed Recently Added / Top Card spacing properly, cards stretch evenly to fill actual column width.
 
 ## v0.9.5 (2026-07-23)
 

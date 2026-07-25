@@ -510,7 +510,6 @@
       <a href="collection.html" style="color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px;">Collection</a>
     </div>
     <div>
-      <a class="add-collection-btn" href="collection.html"><i class="ti ti-plus" aria-hidden="true"></i> Add to Collection</a>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin: 0 12px;"></span>
       <button onclick="signOut()">Sign out</button>
     </div>
@@ -526,7 +525,7 @@
       <div id="set-grid" class="set-grid"></div>
     </div>
     <div>
-      <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId)">
+      <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId, topCardRowId)">
         <img id="top-card-img" src="" alt="">
         <div>
           <p class="label">Top card in your collection</p>
@@ -576,6 +575,8 @@
           </div>
         </form>
       </div>
+
+      <a class="add-collection-btn" href="collection.html" style="justify-content:center; margin-top:14px; width:100%;"><i class="ti ti-plus" aria-hidden="true"></i> Add to Collection</a>
     </div>
   </div>
 </div>
@@ -649,7 +650,7 @@
     document.getElementById('card-detail-overlay').style.display = 'none';
   }
 
-  async function openCardDetail(cardId) {
+  async function openCardDetail(cardId, collectionRowId) {
     const { data: card, error } = await supabaseClient
       .from('cards')
       .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
@@ -663,10 +664,17 @@
     const { data: watchlistRow } = await supabaseClient
       .from('user_watchlist').select('id, target_price').eq('user_id', loadedUserId).eq('card_id', cardId).maybeSingle();
 
-    renderCardDetail(card, !!wishlistRow, !!watchlistRow);
+    let ownedRow = null;
+    if (collectionRowId) {
+      const { data } = await supabaseClient
+        .from('user_collection').select('id, estimated_grade, trade_available').eq('id', collectionRowId).maybeSingle();
+      ownedRow = data;
+    }
+
+    renderCardDetail(card, !!wishlistRow, !!watchlistRow, ownedRow);
   }
 
-  function renderCardDetail(card, onWishlist, onWatchlist) {
+  function renderCardDetail(card, onWishlist, onWatchlist, ownedRow) {
     const variants = card.latest_prices || [];
     const primary = variants[0];
     const maxPrice = Math.max(...variants.map((v) => Number(v.market_price) || 0), 0.01);
@@ -738,6 +746,19 @@
         </div>
       </div>
 
+      ${ownedRow ? `
+      <div class="detail-section">
+        <p class="label">Your copy</p>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Estimated grade</label>
+        <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px; cursor:pointer;">
+          <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
+          Available for trade
+        </label>
+        <button class="add-btn" style="width:100%;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
+      </div>
+      ` : ''}
+
       <div class="detail-actions">
         <button class="add-btn" onclick="addCardFromDashboard('${card.id}')">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
@@ -783,6 +804,20 @@
       btn.textContent = 'On Wishlist';
       btn.classList.add('active');
     }
+  }
+
+  async function saveGradeTrade(collectionRowId) {
+    const gradeInput = document.getElementById('detail-grade-input').value;
+    const grade = gradeInput ? parseFloat(gradeInput) : null;
+    const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
+
+    const { error } = await supabaseClient
+      .from('user_collection')
+      .update({ estimated_grade: grade, trade_available: tradeAvailable })
+      .eq('id', collectionRowId);
+
+    if (error) { console.error('Save grade/trade error:', error); return; }
+    closeCardDetail();
   }
 
   async function toggleWatchlistDetail(cardId) {
@@ -838,7 +873,7 @@
       el.className = 'recent-card';
       el.innerHTML = `
         ${card?.image_url
-          ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}')">`
+          ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
           : `<div class="thumb-placeholder"></div>`}
         <p class="name">${card?.name || ''}</p>
         <p class="meta">${card?.sets?.name || ''}${card?.rarity ? ' · ' + card.rarity : ''}</p>
@@ -993,12 +1028,13 @@
   }
 
   let topCardId = null;
+  let topCardRowId = null;
 
   async function loadDashboard(userId) {
     // Pull the user's collection, joined with card + latest price
     const { data: collection, error: collectionError } = await supabaseClient
       .from('user_collection')
-      .select('quantity, variant, card_id, cards(id, name, image_url, card_number, sets(name), latest_prices(variant, market_price))')
+      .select('id, quantity, variant, card_id, cards(id, name, image_url, card_number, sets(name), latest_prices(variant, market_price))')
       .eq('user_id', userId);
 
     if (collectionError) {
@@ -1030,6 +1066,7 @@
     const topCardSection = document.getElementById('top-card-section');
     if (topRow && topPrice > 0) {
       topCardId = topRow.cards.id;
+      topCardRowId = topRow.id;
       document.getElementById('top-card-img').src = topRow.cards.image_url || '';
       document.getElementById('top-card-name').textContent = topRow.cards.name + (topRow.cards.card_number ? ' #' + topRow.cards.card_number : '');
       document.getElementById('top-card-meta').textContent = topRow.cards.sets?.name || '';
@@ -1042,7 +1079,7 @@
     // Recently added cards
     const { data: recent, error: recentError } = await supabaseClient
       .from('user_collection')
-      .select('added_at, variant, cards(id, name, image_url, rarity, sets(name), latest_prices(variant, market_price))')
+      .select('id, added_at, variant, cards(id, name, image_url, rarity, sets(name), latest_prices(variant, market_price))')
       .eq('user_id', userId)
       .order('added_at', { ascending: false })
       .limit(50);

@@ -506,7 +506,7 @@
     document.getElementById('card-detail-overlay').style.display = 'none';
   }
 
-  async function openCardDetail(cardId) {
+  async function openCardDetail(cardId, collectionRowId) {
     const { data: card, error } = await supabaseClient
       .from('cards')
       .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
@@ -520,10 +520,17 @@
     const { data: watchlistRow } = await supabaseClient
       .from('user_watchlist').select('id, target_price').eq('user_id', currentUserId).eq('card_id', cardId).maybeSingle();
 
-    renderCardDetail(card, !!wishlistRow, !!watchlistRow);
+    let ownedRow = null;
+    if (collectionRowId) {
+      const { data } = await supabaseClient
+        .from('user_collection').select('id, estimated_grade, trade_available').eq('id', collectionRowId).maybeSingle();
+      ownedRow = data;
+    }
+
+    renderCardDetail(card, !!wishlistRow, !!watchlistRow, ownedRow);
   }
 
-  function renderCardDetail(card, onWishlist, onWatchlist) {
+  function renderCardDetail(card, onWishlist, onWatchlist, ownedRow) {
     const variants = card.latest_prices || [];
     const primary = variants[0];
     const maxPrice = Math.max(...variants.map((v) => Number(v.market_price) || 0), 0.01);
@@ -595,6 +602,19 @@
         </div>
       </div>
 
+      ${ownedRow ? `
+      <div class="detail-section">
+        <p class="label">Your copy</p>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Estimated grade</label>
+        <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px; cursor:pointer;">
+          <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
+          Available for trade
+        </label>
+        <button class="add-btn" style="width:100%;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
+      </div>
+      ` : ''}
+
       <div class="detail-actions">
         <button class="add-btn" onclick="addCard('${card.id}'); closeCardDetail();">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
@@ -619,6 +639,21 @@
       btn.textContent = 'On Wishlist';
       btn.classList.add('active');
     }
+  }
+
+  async function saveGradeTrade(collectionRowId) {
+    const gradeInput = document.getElementById('detail-grade-input').value;
+    const grade = gradeInput ? parseFloat(gradeInput) : null;
+    const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
+
+    const { error } = await supabaseClient
+      .from('user_collection')
+      .update({ estimated_grade: grade, trade_available: tradeAvailable })
+      .eq('id', collectionRowId);
+
+    if (error) { console.error('Save grade/trade error:', error); return; }
+    closeCardDetail();
+    loadCollection();
   }
 
   async function toggleWatchlistDetail(cardId) {
@@ -1043,7 +1078,7 @@
           tile.className = 'gallery-card';
           tile.innerHTML = `
             ${card.image_url
-              ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}')">`
+              ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
               : `<div class="thumb-placeholder"></div>`}
             <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}</p>
             ${variantLabel}
