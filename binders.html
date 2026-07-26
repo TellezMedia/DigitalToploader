@@ -328,14 +328,20 @@
     loadBinders();
   }
 
+  let loadedUserId = null;
+
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (session) {
       currentUserId = session.user.id;
       document.getElementById('signed-out-view').style.display = 'none';
       document.getElementById('signed-in-view').style.display = 'block';
       document.getElementById('user-email').textContent = session.user.email;
-      loadBinders();
+      if (loadedUserId !== session.user.id) {
+        loadedUserId = session.user.id;
+        loadBinders();
+      }
     } else {
+      loadedUserId = null;
       document.getElementById('signed-out-view').style.display = 'flex';
       document.getElementById('signed-in-view').style.display = 'none';
     }
