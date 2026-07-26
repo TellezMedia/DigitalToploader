@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Digital TopLoader – Collection Manager</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
@@ -383,7 +385,7 @@
 
 <div id="signed-out-view">
   <div class="auth-box">
-    <p style="font-size:15px; font-weight:600; margin-bottom:16px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></p>
+    <img src="logo-vertical.png" alt="Digital TopLoader" style="width:100px; margin-bottom:16px;">
     <button class="provider-btn google" onclick="signInWithGoogle()">
       <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.85 2.09-1.81 2.73v2.27h2.93c1.71-1.58 2.7-3.9 2.7-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.17l-2.93-2.27c-.81.55-1.85.87-3.03.87-2.33 0-4.3-1.57-5-3.68H1v2.34C2.48 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M4 10.75c-.18-.55-.29-1.13-.29-1.75s.11-1.2.29-1.75V4.91H1c-.6 1.2-.95 2.55-.95 4.09s.35 2.89.95 4.09z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.48 2.02 1 4.91l3 2.34c.7-2.11 2.67-3.68 5-3.68z"/></svg>
       Sign in with Google
@@ -408,7 +410,7 @@
 <div id="signed-in-view">
   <div class="topbar">
     <div style="display: flex; align-items: center;">
-      <span style="font-size: 15px; font-weight: 600; margin-right: 24px;"><span style="color: var(--accent-light);">Digital</span> <span style="color: var(--text);">TopLoader</span><span style="color: var(--gold);">.com</span></span>
+      <img src="logo-horizontal.png" alt="Digital TopLoader" style="height:28px; margin-right:24px;">
       <a href="index.html">Dashboard</a>
       <a href="collection.html" class="active">Collection</a>
       <a href="binders.html">Binders</a>
