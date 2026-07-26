@@ -1,28 +1,18 @@
 # Release Notes
 
+## v0.16 (2026-07-26)
+
+**Fixed:**
+- Horizontal logo in the topbar was too small (28px tall). Bumped to 48px across Dashboard, Collection, and Binders.
+
 ## v0.15 (2026-07-26)
 
-**Added:**
-- Real logo and icon assets embedded across all three pages, replacing the text-based wordmark.
-- Horizontal logo in the topbar on Dashboard, Collection, and Binders.
-- Vertical (card icon) logo on the sign-in screen for all three pages.
-- Real favicon and Apple touch icon (for iOS "Add to Home Screen").
-
-**New files to upload (repo root, alongside the HTML files):**
-- `logo-horizontal.png`
-- `logo-vertical.png`
-- `favicon.png`
-- `apple-touch-icon.png`
-- `icon-192.png`, `icon-512.png` (generated for future use, not yet referenced anywhere, no manifest.json exists for this project yet)
+Embedded real logo, favicon, and app icon assets across all three pages.
 
 ## v0.14 (2026-07-25)
 
-Fixed binders showing duplicated on the Binders page.
+Fixed binders showing duplicated.
 
 ## v0.13 (2026-07-25)
 
-Fixed detail modal image compression, replaced per-card Purchase Price with a sealed-product purchase log, first mobile responsiveness pass.
-
-## v0.12 (2026-07-25)
-
-Added the Binders page.
+Fixed detail modal image compression, sealed-product purchase log, first mobile responsiveness pass.
