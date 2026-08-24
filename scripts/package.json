@@ -2,7 +2,7 @@
   "name": "tcg-catalog-import",
   "version": "1.0.0",
   "type": "module",
-  "description": "One-time import of Pokemon, MTG, and Lorcana catalog + pricing from TCGCSV into Supabase",
+  "description": "Catalog + pricing import from TCGCSV into Supabase, covering Pokemon, MTG, Lorcana, One Piece, Digimon, Star Wars: Unlimited, and Flesh and Blood",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
   }

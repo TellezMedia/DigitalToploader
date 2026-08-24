@@ -18,10 +18,18 @@ if (SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_SECRET_KEY === 'YOUR_SECRET_
 }
 
 const GAMES = [
-  { slug: 'pokemon', name: 'Pokemon', tcgcsvCategoryId: 3 },
-  { slug: 'mtg', name: 'Magic: The Gathering', tcgcsvCategoryId: 1 },
-  { slug: 'lorcana', name: 'Disney Lorcana', tcgcsvCategoryId: 71 },
+  { slug: 'pokemon', name: 'Pokemon', tcgcsvCategoryId: 3, hiresSource: 'pokemontcg' },
+  { slug: 'mtg', name: 'Magic: The Gathering', tcgcsvCategoryId: 1, hiresSource: 'scryfall' },
+  { slug: 'lorcana', name: 'Disney Lorcana', tcgcsvCategoryId: 71, hiresSource: 'lorcast' },
+  { slug: 'onepiece', name: 'One Piece Card Game', tcgcsvCategoryId: 68, hiresSource: null },
+  { slug: 'digimon', name: 'Digimon Card Game', tcgcsvCategoryId: 63, hiresSource: null },
+  { slug: 'swu', name: 'Star Wars: Unlimited', tcgcsvCategoryId: 79, hiresSource: null },
+  { slug: 'fab', name: 'Flesh and Blood', tcgcsvCategoryId: 62, hiresSource: null },
 ];
+
+// Optional: raises pokemontcg.io rate limits from 1,000/day to 20,000/day.
+// Get a free key at https://pokemontcg.io, set as a repo secret / env var.
+const POKEMONTCG_API_KEY = process.env.POKEMONTCG_API_KEY || '';
 
 const TEST_MODE = process.argv.includes('--test');
 const DELAY_MS = 300; // pause between requests, be polite to a free hobby-run service
@@ -30,6 +38,114 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---- HI-RES IMAGE LOOKUP ----
+// TCGCSV's own product images are low-res thumbnails. For games with a
+// better public source, we fetch that game's set list once per run, fuzzy-
+// match it against the TCGCSV group name (handles naming drift, and
+// specifically promo sets, which are named inconsistently across sources
+// e.g. "Scarlet & Violet Black Star Promos" vs "Promos"), then pull that
+// set's cards and index them by collector number for a fast lookup while
+// building each card row.
+
+const hiresSetListCache = {}; // source -> [{ name, id }]
+
+function normalizeCardNumber(n) {
+  if (n == null) return '';
+  return String(n).replace(/^0+(?=\d)/, '').trim().toLowerCase();
+}
+
+function normalizeSetName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/black star promos?/g, 'promos')
+    .replace(/promotional cards?/g, 'promos')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function matchSet(tcgcsvGroupName, hiresSetList) {
+  const target = normalizeSetName(tcgcsvGroupName);
+  if (!target) return null;
+  let found = hiresSetList.find((s) => normalizeSetName(s.name) === target);
+  if (found) return found;
+  // Fallback: containment match, catches promo-set naming drift between sources.
+  found = hiresSetList.find((s) => {
+    const n = normalizeSetName(s.name);
+    return n && (n.includes(target) || target.includes(n));
+  });
+  return found || null;
+}
+
+async function getHiresSetList(source) {
+  if (hiresSetListCache[source]) return hiresSetListCache[source];
+  let list = [];
+  try {
+    if (source === 'pokemontcg') {
+      const headers = POKEMONTCG_API_KEY ? { 'X-Api-Key': POKEMONTCG_API_KEY } : {};
+      const res = await fetch('https://api.pokemontcg.io/v2/sets?pageSize=250', { headers });
+      const json = await res.json();
+      list = (json.data || []).map((s) => ({ name: s.name, id: s.id }));
+    } else if (source === 'scryfall') {
+      const res = await fetch('https://api.scryfall.com/sets');
+      const json = await res.json();
+      list = (json.data || []).map((s) => ({ name: s.name, id: s.code }));
+    } else if (source === 'lorcast') {
+      const res = await fetch('https://api.lorcast.com/v0/sets');
+      const json = await res.json();
+      list = (json.results || []).map((s) => ({ name: s.name, id: s.id }));
+    }
+  } catch (err) {
+    console.log(`    Hi-res set list fetch failed for ${source}: ${err.message}`);
+  }
+  hiresSetListCache[source] = list;
+  return list;
+}
+
+async function getHiresImageMap(source, tcgcsvGroupName) {
+  const map = new Map();
+  const setList = await getHiresSetList(source);
+  const matched = matchSet(tcgcsvGroupName, setList);
+  if (!matched) return map;
+
+  try {
+    if (source === 'pokemontcg') {
+      const headers = POKEMONTCG_API_KEY ? { 'X-Api-Key': POKEMONTCG_API_KEY } : {};
+      const res = await fetch(
+        `https://api.pokemontcg.io/v2/cards?q=set.id:${matched.id}&pageSize=250`,
+        { headers }
+      );
+      const json = await res.json();
+      for (const c of json.data || []) {
+        if (c.images?.large) map.set(normalizeCardNumber(c.number), c.images.large);
+      }
+    } else if (source === 'scryfall') {
+      let url = `https://api.scryfall.com/cards/search?q=set:${matched.id}&unique=prints`;
+      while (url) {
+        const res = await fetch(url);
+        if (!res.ok) break;
+        const json = await res.json();
+        for (const c of json.data || []) {
+          const img = c.image_uris?.large || c.card_faces?.[0]?.image_uris?.large;
+          if (img) map.set(normalizeCardNumber(c.collector_number), img);
+        }
+        url = json.has_more ? json.next_page : null;
+        if (url) await sleep(100); // Scryfall asks for ~10 req/sec max
+      }
+    } else if (source === 'lorcast') {
+      const res = await fetch(`https://api.lorcast.com/v0/sets/${matched.id}/cards`);
+      const json = await res.json();
+      const cards = Array.isArray(json) ? json : json.results || [];
+      for (const c of cards) {
+        const img = c.image_uris?.digital?.large;
+        if (img) map.set(normalizeCardNumber(c.collector_number), img);
+      }
+    }
+  } catch (err) {
+    console.log(`    Hi-res card fetch failed for ${source}/${matched.name}: ${err.message}`);
+  }
+  return map;
 }
 
 async function fetchJson(url) {
@@ -137,15 +253,25 @@ async function importGame(game) {
       pricesByProductId.get(p.productId).push(p);
     }
 
-    const cardRows = singleCards.map((product) => ({
-      set_id: setRow.id,
-      name: product.name,
-      card_number: getExtendedValue(product, 'Number') || getExtendedValue(product, 'CardNumber'),
-      rarity: getExtendedValue(product, 'Rarity'),
-      card_type: getExtendedValue(product, 'CardType') || getExtendedValue(product, 'Type'),
-      image_url: product.imageUrl || null,
-      tcgcsv_product_id: String(product.productId),
-    }));
+    let hiresMap = new Map();
+    if (game.hiresSource) {
+      hiresMap = await getHiresImageMap(game.hiresSource, group.name);
+      if (hiresMap.size > 0) console.log(`    Hi-res matches available: ${hiresMap.size}`);
+    }
+
+    const cardRows = singleCards.map((product) => {
+      const cardNumber = getExtendedValue(product, 'Number') || getExtendedValue(product, 'CardNumber');
+      const hiresUrl = hiresMap.get(normalizeCardNumber(cardNumber));
+      return {
+        set_id: setRow.id,
+        name: product.name,
+        card_number: cardNumber,
+        rarity: getExtendedValue(product, 'Rarity'),
+        card_type: getExtendedValue(product, 'CardType') || getExtendedValue(product, 'Type'),
+        image_url: hiresUrl || product.imageUrl || null,
+        tcgcsv_product_id: String(product.productId),
+      };
+    });
 
     // Upsert cards in batches of 500
     const insertedCards = [];

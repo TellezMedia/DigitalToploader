@@ -6,20 +6,47 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Digital TopLoader – Binders</title>
+<script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
-    --bg: #14213D;
-    --card: #1B2A4D;
-    --border: #2A3A5C;
-    --text: #E6E8EE;
-    --text-muted: #8890a6;
+    --bg: #12151c;
+    --card: #1a1e28;
+    --border: #2a2f3b;
+    --text: #e7e9ee;
+    --text-muted: #8992a3;
     --accent: #2E86FF;
     --accent-light: #39D0FF;
     --gold: #F6C453;
     --danger: #e05a5a;
   }
+  html.light {
+    --bg: #f4f5f8;
+    --card: #ffffff;
+    --border: #d8dbe1;
+    --text: #1a1d24;
+    --text-muted: #6b7280;
+    --accent: #1f6fe0;
+    --accent-light: #0891b2;
+    --gold: #b8860b;
+    --danger: #c53030;
+  }
+  .theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 15px;
+  }
+  .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -178,6 +205,7 @@
     </div>
     <div>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <button onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -227,6 +255,18 @@
   const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function syncThemeIcon() {
+    const icon = document.getElementById('theme-toggle-icon');
+    if (!icon) return;
+    icon.className = document.documentElement.classList.contains('light') ? 'ti ti-sun' : 'ti ti-moon';
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light');
+    try { localStorage.setItem('dtl-theme', isLight ? 'light' : 'dark'); } catch (e) {}
+    syncThemeIcon();
+  }
+  syncThemeIcon();
 
   let currentUserId = null;
   let activeBinderId = null;

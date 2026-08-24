@@ -6,21 +6,48 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Digital TopLoader – Collection Manager</title>
+<script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
-    --bg: #14213D;
-    --card: #1B2A4D;
-    --border: #2A3A5C;
-    --text: #E6E8EE;
-    --text-muted: #8890a6;
+    --bg: #12151c;
+    --card: #1a1e28;
+    --border: #2a2f3b;
+    --text: #e7e9ee;
+    --text-muted: #8992a3;
     --accent: #2E86FF;
     --accent-light: #39D0FF;
     --gold: #F6C453;
     --danger: #e05a5a;
   }
+  html.light {
+    --bg: #f4f5f8;
+    --card: #ffffff;
+    --border: #d8dbe1;
+    --text: #1a1d24;
+    --text-muted: #6b7280;
+    --accent: #1f6fe0;
+    --accent-light: #0891b2;
+    --gold: #b8860b;
+    --danger: #c53030;
+  }
+  .theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 15px;
+  }
+  .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -286,6 +313,58 @@
     width: 100%;
     padding: 20px;
   }
+  #view-all-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 14, 26, 0.85);
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 40px 16px;
+  }
+  .view-all-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-width: 1000px;
+    width: 100%;
+    padding: 20px;
+  }
+  .view-all-panel .close-detail {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    float: right;
+  }
+  .view-all-panel h3 { margin: 0 0 4px; }
+  .view-all-panel .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 18px; }
+  .view-all-set-block { margin-bottom: 24px; }
+  .view-all-set-block .set-name { font-size: 14px; font-weight: 600; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .view-all-link {
+    color: var(--accent-light);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    margin-left: 10px;
+    cursor: pointer;
+  }
+  .view-all-link:hover { text-decoration: underline; }
+  .lang-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--accent-light);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: 4px;
+  }
   .detail-panel .close-detail {
     background: transparent;
     border: none;
@@ -417,6 +496,7 @@
     </div>
     <div>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <button onclick="signOut()">Sign out</button>
     </div>
   </div>
@@ -452,6 +532,15 @@
   <div id="collection-groups"></div>
 </div>
 
+<div id="view-all-overlay">
+  <div class="view-all-panel">
+    <button class="close-detail" onclick="closeViewAll()">&times;</button>
+    <h3 id="view-all-title"></h3>
+    <p class="sub" id="view-all-sub"></p>
+    <div id="view-all-body"></div>
+  </div>
+</div>
+
 <div id="search-toast"></div>
 
 <div id="card-detail-overlay">
@@ -462,6 +551,18 @@
   const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function syncThemeIcon() {
+    const icon = document.getElementById('theme-toggle-icon');
+    if (!icon) return;
+    icon.className = document.documentElement.classList.contains('light') ? 'ti ti-sun' : 'ti ti-moon';
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light');
+    try { localStorage.setItem('dtl-theme', isLight ? 'light' : 'dark'); } catch (e) {}
+    syncThemeIcon();
+  }
+  syncThemeIcon();
 
   let currentUserId = null;
 
@@ -807,6 +908,10 @@
         </div>
         <div class="actions">
           <input type="number" min="1" value="1" id="qty-${card.id}">
+          <select id="language-${card.id}" style="margin-left:6px;">
+            <option value="English">English</option>
+            <option value="Japanese">Japanese</option>
+          </select>
           <button class="add-btn" onclick="addCard('${card.id}')">Add</button>
         </div>
       `;
@@ -819,8 +924,10 @@
     const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
     const variantSelect = document.getElementById(`variant-${cardId}`);
     const variant = variantSelect ? variantSelect.value : 'Normal';
+    const languageSelect = document.getElementById(`language-${cardId}`);
+    const language = languageSelect ? languageSelect.value : 'English';
 
-    // Check if this exact card+variant already exists for this user
+    // Check if this exact card+variant+language already exists for this user
     const { data: existing } = await supabaseClient
       .from('user_collection')
       .select('id, quantity')
@@ -828,7 +935,7 @@
       .eq('card_id', cardId)
       .eq('condition', 'Near Mint')
       .eq('variant', variant)
-      .eq('language', 'English')
+      .eq('language', language)
       .maybeSingle();
 
     if (existing) {
@@ -840,7 +947,7 @@
     } else {
       const { error } = await supabaseClient
         .from('user_collection')
-        .insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant });
+        .insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, language });
       if (error) console.error('Insert error:', error);
     }
 
@@ -896,13 +1003,13 @@
   async function exportCollectionCSV() {
     const { data: rows, error } = await supabaseClient
       .from('user_collection')
-      .select('quantity, condition, variant, cards(name, card_number, sets(name, games(name)))')
+      .select('quantity, condition, variant, language, cards(name, card_number, sets(name, games(name)))')
       .eq('user_id', currentUserId);
 
     if (error) { console.error('Export error:', error); showToast('Export failed, see console.'); return; }
 
     const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Game', 'Set', 'Card Name', 'Card Number', 'Variant', 'Quantity', 'Condition'];
+    const header = ['Game', 'Set', 'Card Name', 'Card Number', 'Variant', 'Language', 'Quantity', 'Condition'];
     const lines = [header.join(',')];
 
     for (const row of rows) {
@@ -913,6 +1020,7 @@
         c?.name || '',
         c?.card_number || '',
         row.variant || 'Normal',
+        row.language || 'English',
         row.quantity,
         row.condition,
       ].map(escape).join(','));
@@ -955,6 +1063,7 @@
       const name = (row['Card Name'] || '').trim();
       const cardNumber = (row['Card Number'] || '').trim();
       const variant = (row['Variant'] || 'Normal').trim() || 'Normal';
+      const language = (row['Language'] || 'English').trim() || 'English';
       const qty = parseInt(row['Quantity']) || 1;
       const condition = (row['Condition'] || 'Near Mint').trim() || 'Near Mint';
 
@@ -985,13 +1094,13 @@
         .eq('card_id', cardId)
         .eq('condition', condition)
         .eq('variant', variant)
-        .eq('language', 'English')
+        .eq('language', language)
         .maybeSingle();
 
       if (existing) {
         await supabaseClient.from('user_collection').update({ quantity: existing.quantity + qty }).eq('id', existing.id);
       } else {
-        await supabaseClient.from('user_collection').insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, condition });
+        await supabaseClient.from('user_collection').insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, condition, language });
       }
       imported++;
     }
@@ -1013,7 +1122,7 @@
 
     const { data: rows, error } = await supabaseClient
       .from('user_collection')
-      .select('id, quantity, condition, variant, cards(id, name, card_number, image_url, rarity, set_id, sets(id, name, games(id, name)), price_trends(variant, latest_price, previous_price))')
+      .select('id, quantity, condition, variant, language, cards(id, name, card_number, image_url, rarity, set_id, sets(id, name, games(id, name)), price_trends(variant, latest_price, previous_price))')
       .eq('user_id', currentUserId);
 
     if (error) { groupsDiv.innerHTML = '<div class="empty">Load error, see console.</div>'; console.error(error); return; }
@@ -1026,6 +1135,53 @@
     collectionRowsRaw = rows || [];
     masterSetIdsRaw = new Set((masterSets || []).map((m) => m.set_id));
     renderCollectionGroups();
+  }
+
+  function openViewAll(gameId) {
+    const rowsForGame = collectionRowsRaw.filter((r) => r.cards?.sets?.games?.id === gameId);
+    if (rowsForGame.length === 0) return;
+
+    const gameName = rowsForGame[0].cards.sets.games.name;
+    const bySet = new Map();
+    for (const row of rowsForGame) {
+      const set = row.cards.sets;
+      if (!bySet.has(set.id)) bySet.set(set.id, { set, rows: [] });
+      bySet.get(set.id).rows.push(row);
+    }
+    // Fixed sort order: by set name, cards grouped within each set (not user-resortable)
+    const sortedSets = [...bySet.values()].sort((a, b) => a.set.name.localeCompare(b.set.name));
+
+    document.getElementById('view-all-title').textContent = `${gameName} — All Cards`;
+    document.getElementById('view-all-sub').textContent = `${rowsForGame.length} card${rowsForGame.length === 1 ? '' : 's'} across ${sortedSets.length} set${sortedSets.length === 1 ? '' : 's'}`;
+
+    const body = document.getElementById('view-all-body');
+    body.innerHTML = '';
+    for (const { set, rows: setRows } of sortedSets) {
+      const block = document.createElement('div');
+      block.className = 'view-all-set-block';
+      block.innerHTML = `<p class="set-name">${set.name} <span style="color:var(--text-muted); font-weight:400;">(${setRows.length})</span></p><div class="set-gallery" style="display:grid;"></div>`;
+      const gallery = block.querySelector('.set-gallery');
+      for (const row of setRows) {
+        const card = row.cards;
+        const langBadge = row.language && row.language !== 'English' ? `<span class="lang-badge">${row.language}</span>` : '';
+        const tile = document.createElement('div');
+        tile.className = 'gallery-card';
+        tile.innerHTML = `
+          ${card.image_url
+            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="closeViewAll(); openCardDetail('${card.id}', '${row.id}')">`
+            : `<div class="thumb-placeholder"></div>`}
+          <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}${langBadge}</p>
+        `;
+        gallery.appendChild(tile);
+      }
+      body.appendChild(block);
+    }
+
+    document.getElementById('view-all-overlay').style.display = 'flex';
+  }
+
+  function closeViewAll() {
+    document.getElementById('view-all-overlay').style.display = 'none';
   }
 
   function renderCollectionGroups() {
@@ -1060,6 +1216,7 @@
           <i class="ti ti-chevron-right chevron${gameOpen ? ' open' : ''}" aria-hidden="true"></i>
           <span>${game.name}</span>
           <span class="count">${sets.size} ${sets.size === 1 ? 'set' : 'sets'} · ${totalCardsInGame} cards</span>
+          <a class="view-all-link" onclick="event.stopPropagation(); openViewAll('${game.id}')">View All</a>
         </div>
         <div class="game-sets" style="display:${gameOpen ? 'block' : 'none'}"></div>
       `;
@@ -1101,6 +1258,7 @@
             priceHtml = `<p class="price">$${Number(trend.latest_price).toFixed(2)}${arrow}</p>`;
           }
           const variantLabel = rowVariant !== 'Normal' ? `<p class="meta" style="font-size:10px; margin:0 0 2px;">${rowVariant}</p>` : '';
+          const langBadge = row.language && row.language !== 'English' ? `<span class="lang-badge">${row.language}</span>` : '';
 
           const tile = document.createElement('div');
           tile.className = 'gallery-card';
@@ -1108,7 +1266,7 @@
             ${card.image_url
               ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
               : `<div class="thumb-placeholder"></div>`}
-            <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}</p>
+            <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}${langBadge}</p>
             ${variantLabel}
             <div class="qty-row">
               <input type="number" min="1" value="${row.quantity}" onchange="updateQuantity('${row.id}', this.value)">
