@@ -590,15 +590,10 @@
       <a href="#" onclick="exportCollectionCSV(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
         <i class="ti ti-file-export" aria-hidden="true"></i> Export CSV
       </a>
-      <select id="csv-source-select" style="font-size:12px; padding:3px 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px;">
-        <option value="template">Digital TopLoader template</option>
-        <option value="palworldtcg">palworldtcg.gg export</option>
-        <option value="other">Other CSV</option>
-      </select>
-      <a href="#" onclick="document.getElementById('csv-import-input').click(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
+      <a href="#" onclick="openCsvImportModal(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
         <i class="ti ti-file-import" aria-hidden="true"></i> Import CSV
       </a>
-      <input type="file" id="csv-import-input" accept=".csv" style="display:none;" onchange="importCollectionCSV(event)">
+      <input type="file" id="csv-import-input" accept=".csv" style="display:none;" onchange="handleCsvFileChosen(event)">
     </div>
   </div>
   <div id="import-summary"></div>
@@ -614,7 +609,31 @@
   </div>
 </div>
 
+<div id="csv-import-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,14,26,0.85); align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:420px; width:100%; padding:24px; position:relative;">
+    <button class="close-detail" onclick="closeCsvImportModal()" style="position:absolute; top:14px; right:16px;">&times;</button>
+    <h3 style="margin:0 0 4px;">Import CSV</h3>
+    <p class="sub" style="color:var(--text-muted); font-size:13px; margin:0 0 18px;">Choose which site this file was exported from, so the columns get read correctly.</p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px;">
+        <input type="radio" name="csv-source" value="template" checked>
+        Digital TopLoader template
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px;">
+        <input type="radio" name="csv-source" value="palworldtcg">
+        palworldtcg.gg export
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px;">
+        <input type="radio" name="csv-source" value="other">
+        Other CSV
+      </label>
+    </div>
+    <button class="add-btn" onclick="document.getElementById('csv-import-input').click();">Choose file…</button>
+  </div>
+</div>
+
 <div id="search-toast"></div>
+
 
 <div id="card-detail-overlay">
   <div class="detail-panel" id="detail-panel-content"></div>
@@ -1161,10 +1180,21 @@
     URL.revokeObjectURL(url);
   }
 
-  function importCollectionCSV(event) {
+  function openCsvImportModal() {
+    document.getElementById('csv-import-overlay').style.display = 'flex';
+  }
+
+  function closeCsvImportModal() {
+    document.getElementById('csv-import-overlay').style.display = 'none';
+  }
+
+  function handleCsvFileChosen(event) {
     const file = event.target.files[0];
     if (!file) return;
-    const source = document.getElementById('csv-source-select')?.value || 'other';
+    const selectedRadio = document.querySelector('input[name="csv-source"]:checked');
+    const source = selectedRadio ? selectedRadio.value : 'other';
+
+    closeCsvImportModal();
 
     Papa.parse(file, {
       header: true,
@@ -1178,7 +1208,7 @@
 
   // Column name variants per known export source. "other" is the generic
   // fallback and tries the widest net of common alternate names. Add a new
-  // entry here (and a matching <option> in the source dropdown) once a
+  // entry here (and a matching radio option in the import modal) once a
   // site's exact export format is confirmed with a real sample file.
   const CSV_SOURCE_PROFILES = {
     template: {
