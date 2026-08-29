@@ -814,11 +814,11 @@
   </div>
 </div>
 
-<div id="card-detail-overlay">
+<div id="card-detail-overlay" onclick="if(event.target === this) closeCardDetail()">
   <div class="detail-panel" id="detail-panel-content"></div>
 </div>
 
-<div id="checklist-overlay">
+<div id="checklist-overlay" onclick="if(event.target === this) closeSetChecklist()">
   <div class="checklist-panel">
     <button class="close-detail" onclick="closeSetChecklist()"><i class="ti ti-x" aria-hidden="true"></i></button>
     <h3 id="checklist-title">Set</h3>
@@ -1022,7 +1022,7 @@
     panel.innerHTML = `
       <button class="close-detail" onclick="closeCardDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
       <div class="detail-header">
-        ${card.image_url ? `<img src="${card.image_url}" alt="">` : ''}
+        ${card.image_url ? `<div style="position:relative; flex-shrink:0;"><img src="${card.image_url}" alt="">${rarityBadge(card.rarity)}</div>` : ''}
         <div>
           <div class="badges">
             <span class="badge">${card.sets?.games?.name || ''}</span>
