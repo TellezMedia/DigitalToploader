@@ -1341,7 +1341,7 @@
     }
     // 'date' is already the default order from the query (added_at desc)
 
-    sorted = sorted.slice(0, 10);
+    sorted = sorted.slice(0, 20);
     grid.innerHTML = '';
     for (const row of sorted) {
       const card = row.cards;
@@ -1984,7 +1984,6 @@
       masterSets.length + (masterSets.length === 1 ? ' set' : ' sets');
 
     const setGridContainer = document.getElementById('set-grid-container');
-    setGridContainer.innerHTML = '';
 
     if (masterSets.length === 0) {
       setGridContainer.innerHTML = '<div class="empty">No master sets flagged yet. Go to Collection and check "Master set" on a set to track it here.</div>';
@@ -2001,16 +2000,9 @@
       byGame.get(gameName).push(row);
     }
 
+    const masterSetEntries = []; // flat, in display order: { gameName, element }
+
     for (const [gameName, rows] of byGame) {
-      const heading = document.createElement('p');
-      heading.className = 'game-group-heading';
-      heading.textContent = gameName;
-      setGridContainer.appendChild(heading);
-
-      const setGrid = document.createElement('div');
-      setGrid.className = 'set-grid';
-      setGridContainer.appendChild(setGrid);
-
       for (const row of rows) {
         const set = row.sets;
         // Count how many unique cards from this set the user owns
@@ -2038,13 +2030,64 @@
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
           <p class="sub" style="margin-top:6px;">${ownedInSet || 0}/${set.total_cards} cards · ${pct}%</p>
         `;
-        setGrid.appendChild(card);
+        masterSetEntries.push({ gameName, element: card });
       }
     }
+
+    renderMasterSetsSidebar(masterSetEntries);
   }
 
   let currentMasterSets = [];
   let draggedSetCard = null;
+
+  // Caps the Set Completion sidebar so it doesn't run far past the main
+  // content once several sets are tracked, with a "Show all" link to expand.
+  const MASTER_SETS_COLLAPSED_LIMIT = 6;
+  let cachedMasterSetEntries = [];
+  let masterSetsShowAll = false;
+
+  function renderMasterSetsSidebar(entries) {
+    cachedMasterSetEntries = entries;
+    masterSetsShowAll = false;
+    paintMasterSetsSidebar();
+  }
+
+  function paintMasterSetsSidebar() {
+    const container = document.getElementById('set-grid-container');
+    container.innerHTML = '';
+    const entries = cachedMasterSetEntries;
+    const visibleCount = masterSetsShowAll ? entries.length : Math.min(MASTER_SETS_COLLAPSED_LIMIT, entries.length);
+    const visible = entries.slice(0, visibleCount);
+
+    let lastGame = null;
+    let currentGrid = null;
+    for (const entry of visible) {
+      if (entry.gameName !== lastGame) {
+        const heading = document.createElement('p');
+        heading.className = 'game-group-heading';
+        heading.textContent = entry.gameName;
+        container.appendChild(heading);
+        currentGrid = document.createElement('div');
+        currentGrid.className = 'set-grid';
+        container.appendChild(currentGrid);
+        lastGame = entry.gameName;
+      }
+      currentGrid.appendChild(entry.element);
+    }
+
+    if (entries.length > MASTER_SETS_COLLAPSED_LIMIT) {
+      const toggle = document.createElement('a');
+      toggle.href = '#';
+      toggle.style.cssText = 'display:block; text-align:center; font-size:12px; color:var(--accent-light); text-decoration:none; margin-top:8px;';
+      toggle.textContent = masterSetsShowAll ? 'Show less' : `Show all (${entries.length})`;
+      toggle.onclick = (e) => {
+        e.preventDefault();
+        masterSetsShowAll = !masterSetsShowAll;
+        paintMasterSetsSidebar();
+      };
+      container.appendChild(toggle);
+    }
+  }
 
   function handleSetDragStart(e) {
     draggedSetCard = e.currentTarget;

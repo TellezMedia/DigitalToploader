@@ -4,6 +4,12 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.23 (core app)
+
+**Added:**
+- "Recently added" on the Dashboard now shows 20 cards instead of 10.
+- Set Completion sidebar now caps at 6 sets by default with a "Show all (N)" link to expand, so it stops running far past the Recently Added section as more sets get tracked. Drag-to-reorder still works the same within whatever's currently visible.
+
 ## v0.22 (core app)
 
 **Added:**
