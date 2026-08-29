@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Digital TopLoader – Profile</title>
+<script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #12151c;
+    --card: #1a1e28;
+    --border: #2a2f3b;
+    --text: #e7e9ee;
+    --text-muted: #8992a3;
+    --accent: #2E86FF;
+    --accent-light: #39D0FF;
+    --gold: #F6C453;
+    --danger: #e05a5a;
+  }
+  html.light {
+    --bg: #f4f5f8;
+    --card: #ffffff;
+    --border: #d8dbe1;
+    --text: #1a1d24;
+    --text-muted: #6b7280;
+    --accent: #1f6fe0;
+    --accent-light: #0891b2;
+    --gold: #b8860b;
+    --danger: #c53030;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  #signed-out-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #signed-out-view button {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #signed-in-view { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .topbar a { color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px; }
+  .topbar a.active { color: var(--accent); font-weight: 600; }
+  .theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 15px;
+  }
+  .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+  .user-menu { position: relative; margin-right: 10px; display: inline-block; }
+  .user-menu-trigger {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    height: 32px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .user-menu-trigger:hover { border-color: var(--accent); }
+  .user-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+  .user-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 38px;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 140px;
+    z-index: 200;
+    overflow: hidden;
+  }
+  .user-menu-dropdown.open { display: block; }
+  .user-menu-dropdown a {
+    display: block;
+    padding: 8px 12px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    margin: 0;
+  }
+  .user-menu-dropdown a:hover { background: var(--bg); }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 4px; }
+  input[type=text] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .save-btn, .action-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .action-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .action-btn.danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .profile-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .profile-name-row h1 { font-size: 20px; margin: 0; }
+  .visibility-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .visibility-badge.public { color: var(--accent-light); border-color: var(--accent-light); }
+  .stats-row { display: flex; gap: 28px; margin-top: 14px; flex-wrap: wrap; }
+  .stat { text-align: left; }
+  .stat .num { font-size: 20px; font-weight: 700; display: block; }
+  .stat .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .locked-note {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .search-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .search-row input { flex: 1; margin-bottom: 0; }
+  .search-results { display: flex; flex-direction: column; gap: 8px; }
+  .search-result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .search-result-row .who { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .search-result-row img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+  .request-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .request-row .actions { display: flex; gap: 6px; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 10px 0; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    display: inline-block;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .switch .slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.15s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+@media (max-width: 700px) {
+  #signed-in-view { padding: 12px; }
+  .stats-row { gap: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div id="signed-out-view">
+  <div style="text-align:center;">
+    <img src="logo-vertical.png" alt="Digital TopLoader" style="width:100px; margin-bottom:16px;">
+    <button onclick="signInWithGoogle()">Sign in with Google</button>
+  </div>
+</div>
+
+<div id="signed-in-view">
+  <div class="topbar">
+    <div style="display: flex; align-items: center;">
+      <img src="logo-horizontal.png" alt="Digital TopLoader" style="height:48px; margin-right:24px;">
+      <a href="index.html">Dashboard</a>
+      <a href="collection.html">Collection</a>
+      <a href="binders.html">Binders</a>
+      <a href="profile.html" class="active">Profile</a>
+    </div>
+    <div>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
+      <div class="user-menu" id="user-menu">
+        <button class="user-menu-trigger" onclick="toggleUserMenu()">
+          <img id="user-avatar" class="user-avatar" src="" alt="" style="display:none;">
+          <span id="user-name">Account</span>
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </button>
+        <div class="user-menu-dropdown" id="user-menu-dropdown">
+          <a href="profile.html">Profile</a>
+          <a href="#" onclick="signOut(); return false;">Sign out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your own profile -->
+  <div class="panel" id="own-profile-panel">
+    <div class="profile-header">
+      <img id="own-avatar" class="profile-avatar" src="" alt="">
+      <div>
+        <div class="profile-name-row">
+          <h1 id="own-username">—</h1>
+          <span class="visibility-badge" id="own-visibility-badge">PUBLIC</span>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><span class="num" id="own-card-count">0</span><span class="label">Cards</span></div>
+          <div class="stat"><span class="num" id="own-set-count">0</span><span class="label">Sets</span></div>
+          <div class="stat"><span class="num" id="own-follower-count">0</span><span class="label">Followers</span></div>
+          <div class="stat"><span class="num" id="own-following-count">0</span><span class="label">Following</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="panel">
+    <h2>Profile settings</h2>
+    <label for="username-input">Username</label>
+    <input type="text" id="username-input" placeholder="e.g. JDoeTCG" maxlength="24">
+    <div class="toggle-row">
+      <div>
+        <div style="font-size:13px; font-weight:500;">Public profile</div>
+        <div style="font-size:12px; color:var(--text-muted);">Public profiles are discoverable by username. People must still send a follow request to see your posts.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="is-public-toggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <button class="save-btn" onclick="saveProfileSettings()">Save</button>
+    <span id="settings-saved-note" style="font-size:12px; color: var(--accent-light); margin-left:10px; display:none;">Saved</span>
+  </div>
+
+  <!-- Pending follow requests -->
+  <div class="panel">
+    <h2>Follow requests</h2>
+    <div id="pending-requests"><p class="empty">No pending requests.</p></div>
+  </div>
+
+  <!-- Find people -->
+  <div class="panel">
+    <h2>Find collectors</h2>
+    <div class="search-row">
+      <input type="text" id="user-search-input" placeholder="Search by username" onkeydown="if(event.key==='Enter') searchUsers();">
+      <button class="action-btn" onclick="searchUsers()">Search</button>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+
+  <!-- Viewing another user's profile -->
+  <div class="panel" id="other-profile-panel" style="display:none;">
+    <div class="profile-header">
+      <img id="other-avatar" class="profile-avatar" src="" alt="">
+      <div>
+        <div class="profile-name-row">
+          <h1 id="other-username">—</h1>
+          <span class="visibility-badge" id="other-visibility-badge">PUBLIC</span>
+        </div>
+        <div class="stats-row" id="other-stats-row">
+          <div class="stat"><span class="num" id="other-card-count">0</span><span class="label">Cards</span></div>
+          <div class="stat"><span class="num" id="other-set-count">0</span><span class="label">Sets</span></div>
+          <div class="stat"><span class="num" id="other-follower-count">0</span><span class="label">Followers</span></div>
+          <div class="stat"><span class="num" id="other-following-count">0</span><span class="label">Following</span></div>
+        </div>
+        <div id="other-follow-action" style="margin-top:12px;"></div>
+        <p class="locked-note" id="other-locked-note" style="display:none;">Posts hidden until your follow request is accepted.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function syncThemeIcon() {
+    const icon = document.getElementById('theme-toggle-icon');
+    if (!icon) return;
+    icon.className = document.documentElement.classList.contains('light') ? 'ti ti-sun' : 'ti ti-moon';
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light');
+    try { localStorage.setItem('dtl-theme', isLight ? 'light' : 'dark'); } catch (e) {}
+    syncThemeIcon();
+  }
+  syncThemeIcon();
+
+  function toggleUserMenu() {
+    document.getElementById('user-menu-dropdown')?.classList.toggle('open');
+  }
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('user-menu');
+    if (menu && !menu.contains(e.target)) {
+      document.getElementById('user-menu-dropdown')?.classList.remove('open');
+    }
+  });
+
+  async function signInWithGoogle() {
+    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+    if (error) console.error('Sign-in error:', error);
+  }
+
+  async function signOut() {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  }
+
+  let currentUserId = null;
+  let currentUserMeta = {};
+
+  // ---- Own profile ----
+  async function loadOwnProfile() {
+    const { data: profile } = await supabaseClient
+      .from('user_profiles')
+      .select('username, is_public, avatar_url')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+
+    const username = profile?.username || currentUserMeta.full_name || currentUserMeta.name || 'Set a username';
+    const avatarUrl = profile?.avatar_url || currentUserMeta.avatar_url || currentUserMeta.picture || '';
+    const isPublic = profile?.is_public !== false;
+
+    document.getElementById('own-username').textContent = username;
+    document.getElementById('own-avatar').src = avatarUrl;
+    document.getElementById('username-input').value = profile?.username || '';
+    document.getElementById('is-public-toggle').checked = isPublic;
+
+    const badge = document.getElementById('own-visibility-badge');
+    badge.textContent = isPublic ? 'PUBLIC' : 'PRIVATE';
+    badge.classList.toggle('public', isPublic);
+
+    // Card/set counts from the existing collection
+    const { data: collectionRows } = await supabaseClient
+      .from('user_collection')
+      .select('cards(set_id)')
+      .eq('user_id', currentUserId);
+    const cardCount = collectionRows?.length || 0;
+    const setCount = new Set((collectionRows || []).map((r) => r.cards?.set_id).filter(Boolean)).size;
+    document.getElementById('own-card-count').textContent = cardCount;
+    document.getElementById('own-set-count').textContent = setCount;
+
+    // Follower / following counts (accepted only)
+    const { count: followerCount } = await supabaseClient
+      .from('follows')
+      .select('id', { count: 'exact', head: true })
+      .eq('followee_id', currentUserId)
+      .eq('status', 'accepted');
+    const { count: followingCount } = await supabaseClient
+      .from('follows')
+      .select('id', { count: 'exact', head: true })
+      .eq('follower_id', currentUserId)
+      .eq('status', 'accepted');
+    document.getElementById('own-follower-count').textContent = followerCount || 0;
+    document.getElementById('own-following-count').textContent = followingCount || 0;
+  }
+
+  async function saveProfileSettings() {
+    const username = document.getElementById('username-input').value.trim();
+    const isPublic = document.getElementById('is-public-toggle').checked;
+
+    if (!username) {
+      alert('Please choose a username.');
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from('user_profiles')
+      .upsert({ user_id: currentUserId, username, is_public: isPublic }, { onConflict: 'user_id' });
+
+    if (error) {
+      if (error.message.includes('duplicate') || error.code === '23505') {
+        alert('That username is already taken. Try another.');
+      } else {
+        alert('Could not save: ' + error.message);
+      }
+      return;
+    }
+
+    const note = document.getElementById('settings-saved-note');
+    note.style.display = 'inline';
+    setTimeout(() => { note.style.display = 'none'; }, 2000);
+    loadOwnProfile();
+  }
+
+  // ---- Pending follow requests (people who want to follow you) ----
+  async function loadPendingRequests() {
+    const { data: requests, error } = await supabaseClient
+      .from('follows')
+      .select('id, follower_id, requested_at')
+      .eq('followee_id', currentUserId)
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: false });
+
+    const container = document.getElementById('pending-requests');
+    if (error || !requests || requests.length === 0) {
+      container.innerHTML = '<p class="empty">No pending requests.</p>';
+      return;
+    }
+
+    const followerIds = requests.map((r) => r.follower_id);
+    const { data: profiles } = await supabaseClient
+      .from('user_profiles')
+      .select('user_id, username, avatar_url')
+      .in('user_id', followerIds);
+    const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+
+    container.innerHTML = '';
+    for (const req of requests) {
+      const profile = profileMap.get(req.follower_id);
+      const name = profile?.username || 'Unknown collector';
+      const row = document.createElement('div');
+      row.className = 'request-row';
+      row.innerHTML = `
+        <span>${name}</span>
+        <div class="actions">
+          <button class="action-btn" onclick="respondToRequest('${req.id}', 'accepted')">Accept</button>
+          <button class="action-btn secondary" onclick="respondToRequest('${req.id}', 'deny')">Deny</button>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+  }
+
+  async function respondToRequest(followId, action) {
+    if (action === 'accepted') {
+      await supabaseClient.from('follows').update({ status: 'accepted', responded_at: new Date().toISOString() }).eq('id', followId);
+    } else {
+      await supabaseClient.from('follows').delete().eq('id', followId);
+    }
+    loadPendingRequests();
+    loadOwnProfile();
+  }
+
+  // ---- Search for other collectors ----
+  async function searchUsers() {
+    const q = document.getElementById('user-search-input').value.trim();
+    const resultsEl = document.getElementById('search-results');
+    if (!q) { resultsEl.innerHTML = ''; return; }
+
+    const { data: matches, error } = await supabaseClient
+      .from('user_profiles')
+      .select('user_id, username, avatar_url, is_public')
+      .ilike('username', `%${q}%`)
+      .neq('user_id', currentUserId)
+      .limit(15);
+
+    if (error || !matches || matches.length === 0) {
+      resultsEl.innerHTML = '<p class="empty">No collectors found.</p>';
+      return;
+    }
+
+    resultsEl.innerHTML = '';
+    for (const person of matches) {
+      const row = document.createElement('div');
+      row.className = 'search-result-row';
+      row.innerHTML = `
+        <span class="who">
+          ${person.avatar_url ? `<img src="${person.avatar_url}" alt="">` : ''}
+          ${person.username || 'Unnamed collector'}
+        </span>
+        <button class="action-btn secondary" onclick="viewProfile('${person.user_id}')">View</button>
+      `;
+      resultsEl.appendChild(row);
+    }
+  }
+
+  // ---- Viewing another user's profile ----
+  async function viewProfile(userId) {
+    const { data: profile } = await supabaseClient
+      .from('user_profiles')
+      .select('user_id, username, avatar_url, is_public')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!profile) {
+      alert('That profile could not be found.');
+      return;
+    }
+
+    document.getElementById('other-profile-panel').style.display = 'block';
+    document.getElementById('other-username').textContent = profile.username || 'Unnamed collector';
+    document.getElementById('other-avatar').src = profile.avatar_url || '';
+    const badge = document.getElementById('other-visibility-badge');
+    badge.textContent = profile.is_public ? 'PUBLIC' : 'PRIVATE';
+    badge.classList.toggle('public', !!profile.is_public);
+
+    // Check existing relationship
+    const { data: existingFollow } = await supabaseClient
+      .from('follows')
+      .select('id, status')
+      .eq('follower_id', currentUserId)
+      .eq('followee_id', userId)
+      .maybeSingle();
+
+    const actionEl = document.getElementById('other-follow-action');
+    const lockedNote = document.getElementById('other-locked-note');
+    const statsRow = document.getElementById('other-stats-row');
+
+    const isApproved = existingFollow?.status === 'accepted';
+
+    if (!profile.is_public && !isApproved) {
+      actionEl.innerHTML = '<span style="font-size:12px; color:var(--text-muted);">This profile is private.</span>';
+      lockedNote.style.display = 'none';
+      statsRow.style.display = 'none';
+      document.getElementById('other-profile-panel').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    statsRow.style.display = 'flex';
+
+    // Follower/following counts are visible regardless of approval (matches wireframe)
+    const { count: followerCount } = await supabaseClient
+      .from('follows').select('id', { count: 'exact', head: true }).eq('followee_id', userId).eq('status', 'accepted');
+    const { count: followingCount } = await supabaseClient
+      .from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', userId).eq('status', 'accepted');
+    document.getElementById('other-follower-count').textContent = followerCount || 0;
+    document.getElementById('other-following-count').textContent = followingCount || 0;
+
+    if (isApproved) {
+      const { data: collectionRows } = await supabaseClient
+        .from('user_collection').select('cards(set_id)').eq('user_id', userId);
+      document.getElementById('other-card-count').textContent = collectionRows?.length || 0;
+      document.getElementById('other-set-count').textContent = new Set((collectionRows || []).map((r) => r.cards?.set_id).filter(Boolean)).size;
+      actionEl.innerHTML = '<span style="font-size:12px; color:var(--accent-light);">You follow this collector.</span>';
+      lockedNote.style.display = 'none';
+    } else if (existingFollow?.status === 'pending') {
+      document.getElementById('other-card-count').textContent = '—';
+      document.getElementById('other-set-count').textContent = '—';
+      actionEl.innerHTML = '<span style="font-size:12px; color:var(--text-muted);">Follow request pending.</span>';
+      lockedNote.style.display = 'block';
+    } else {
+      document.getElementById('other-card-count').textContent = '—';
+      document.getElementById('other-set-count').textContent = '—';
+      actionEl.innerHTML = `<button class="action-btn" onclick="requestFollow('${userId}')">Request to Follow</button>`;
+      lockedNote.style.display = 'block';
+    }
+
+    document.getElementById('other-profile-panel').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function requestFollow(userId) {
+    const { error } = await supabaseClient
+      .from('follows')
+      .insert({ follower_id: currentUserId, followee_id: userId, status: 'pending' });
+    if (error) {
+      alert('Could not send request: ' + error.message);
+      return;
+    }
+    viewProfile(userId);
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      currentUserId = session.user.id;
+      currentUserMeta = session.user.user_metadata || {};
+      document.getElementById('signed-out-view').style.display = 'none';
+      document.getElementById('signed-in-view').style.display = 'block';
+      document.getElementById('user-name').textContent = currentUserMeta.full_name || currentUserMeta.name || session.user.email;
+      const avatarUrl = currentUserMeta.avatar_url || currentUserMeta.picture;
+      const avatarEl = document.getElementById('user-avatar');
+      if (avatarUrl && avatarEl) {
+        avatarEl.src = avatarUrl;
+        avatarEl.style.display = 'inline-block';
+      }
+      loadOwnProfile();
+      loadPendingRequests();
+    } else {
+      document.getElementById('signed-out-view').style.display = 'flex';
+      document.getElementById('signed-in-view').style.display = 'none';
+    }
+  });
+</script>
+</body>
+</html>

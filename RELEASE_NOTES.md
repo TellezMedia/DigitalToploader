@@ -1,5 +1,22 @@
 # Release Notes
 
+Two parallel version tracks from here on: v0.2x for the core app (catalog,
+collection, pricing), v0.5x for the social layer (alpha/beta). They release
+independently.
+
+## v0.50 (2026-08-28) — social layer, alpha
+
+**Added:**
+- Profile page (`profile.html`): shows your card/set/follower/following counts, username, and a public/private toggle. Public profiles are discoverable by username search; private ones aren't.
+- Follow-request system: search for a collector by username, send a follow request, the recipient sees it under "Follow requests" on their own profile and can accept or deny. Until accepted, the requester sees only the target's name/avatar and basic stats, no posts (posts don't exist yet, this is the access-control groundwork for when they do).
+- Account menu moved: the topbar now shows your Google account name (and avatar, when Google provides one) instead of your email, click it to reveal Profile and Sign out. Theme and currency selectors stay as separate standalone controls.
+
+**Not in this build (later phases):** the actual Feed and Log/Showcase/Review post types, the 3-column social shell from the wireframes (left nav + feed + right sidebar), comments, and the trading-interest toggle. Tonight is profile + follow mechanic only, on top of the existing page layout.
+
+**Setup required after this release:**
+1. Run `schema_addition_v8.sql` in Supabase SQL Editor (adds `username`/`is_public` to `user_profiles`, adds the `follows` table with RLS policies).
+2. No import re-run needed, this doesn't touch the catalog pipeline.
+
 ## v0.20 (2026-08-24)
 
 **Fixed:**

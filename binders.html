@@ -47,6 +47,43 @@
     font-size: 15px;
   }
   .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+  .user-menu { position: relative; margin-right: 10px; }
+  .user-menu-trigger {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    height: 32px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .user-menu-trigger:hover { border-color: var(--accent); }
+  .user-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+  .user-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 38px;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 140px;
+    z-index: 200;
+    overflow: hidden;
+  }
+  .user-menu-dropdown.open { display: block; }
+  .user-menu-dropdown a {
+    display: block;
+    padding: 8px 12px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .user-menu-dropdown a:hover { background: var(--bg); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -204,9 +241,18 @@
       <a href="binders.html" class="active">Binders</a>
     </div>
     <div>
-      <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
       <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
-      <button onclick="signOut()">Sign out</button>
+      <div class="user-menu" id="user-menu">
+        <button class="user-menu-trigger" onclick="toggleUserMenu()">
+          <img id="user-avatar" class="user-avatar" src="" alt="" style="display:none;">
+          <span id="user-name">Account</span>
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </button>
+        <div class="user-menu-dropdown" id="user-menu-dropdown">
+          <a href="profile.html">Profile</a>
+          <a href="#" onclick="signOut(); return false;">Sign out</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -267,6 +313,16 @@
     syncThemeIcon();
   }
   syncThemeIcon();
+
+  function toggleUserMenu() {
+    document.getElementById('user-menu-dropdown')?.classList.toggle('open');
+  }
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('user-menu');
+    if (menu && !menu.contains(e.target)) {
+      document.getElementById('user-menu-dropdown')?.classList.remove('open');
+    }
+  });
 
   let currentUserId = null;
   let activeBinderId = null;
@@ -377,7 +433,14 @@
       currentUserId = session.user.id;
       document.getElementById('signed-out-view').style.display = 'none';
       document.getElementById('signed-in-view').style.display = 'block';
-      document.getElementById('user-email').textContent = session.user.email;
+      const meta = session.user.user_metadata || {};
+      document.getElementById('user-name').textContent = meta.full_name || meta.name || session.user.email;
+      const avatarUrl = meta.avatar_url || meta.picture;
+      const avatarEl = document.getElementById('user-avatar');
+      if (avatarUrl && avatarEl) {
+        avatarEl.src = avatarUrl;
+        avatarEl.style.display = 'inline-block';
+      }
       if (loadedUserId !== session.user.id) {
         loadedUserId = session.user.id;
         loadBinders();
