@@ -18,14 +18,21 @@ if (SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_SECRET_KEY === 'YOUR_SECRET_
 }
 
 const GAMES = [
-  { slug: 'pokemon', name: 'Pokemon', tcgcsvCategoryId: 3, hiresSource: 'pokemontcg' },
-  { slug: 'mtg', name: 'Magic: The Gathering', tcgcsvCategoryId: 1, hiresSource: 'scryfall' },
-  { slug: 'lorcana', name: 'Disney Lorcana', tcgcsvCategoryId: 71, hiresSource: 'lorcast' },
-  { slug: 'onepiece', name: 'One Piece Card Game', tcgcsvCategoryId: 68, hiresSource: null },
-  { slug: 'digimon', name: 'Digimon Card Game', tcgcsvCategoryId: 63, hiresSource: null },
-  { slug: 'swu', name: 'Star Wars: Unlimited', tcgcsvCategoryId: 79, hiresSource: null },
-  { slug: 'fab', name: 'Flesh and Blood', tcgcsvCategoryId: 62, hiresSource: null },
+  { slug: 'pokemon', name: 'Pokemon', source: 'tcgcsv', tcgcsvCategoryId: 3, hiresSource: 'pokemontcg' },
+  { slug: 'mtg', name: 'Magic: The Gathering', source: 'tcgcsv', tcgcsvCategoryId: 1, hiresSource: 'scryfall' },
+  { slug: 'lorcana', name: 'Disney Lorcana', source: 'tcgcsv', tcgcsvCategoryId: 71, hiresSource: 'lorcast' },
+  { slug: 'onepiece', name: 'One Piece Card Game', source: 'tcgcsv', tcgcsvCategoryId: 68, hiresSource: null },
+  { slug: 'digimon', name: 'Digimon Card Game', source: 'tcgcsv', tcgcsvCategoryId: 63, hiresSource: null },
+  { slug: 'swu', name: 'Star Wars: Unlimited', source: 'tcgcsv', tcgcsvCategoryId: 79, hiresSource: null },
+  { slug: 'fab', name: 'Flesh and Blood', source: 'tcgcsv', tcgcsvCategoryId: 62, hiresSource: null },
+  { slug: 'palworld', name: 'Palworld TCG', source: 'palworldtcg' },
 ];
+
+// Palworld TCG catalog comes from the fan-run palworldtcg.gg public API
+// (no key, no auth, CORS-enabled) rather than TCGCSV, which doesn't carry
+// this game yet. No pricing data is available from this source, so
+// price_history is intentionally left untouched for this game for now.
+const PALWORLDTCG_BASE = 'https://palworldtcg.gg/api/v1';
 
 // Optional: raises pokemontcg.io rate limits from 1,000/day to 20,000/day.
 // Get a free key at https://pokemontcg.io, set as a repo secret / env var.
@@ -316,6 +323,104 @@ async function importGame(game) {
   }
 }
 
+async function importPalworldGame(game) {
+  console.log(`\n=== ${game.name} ===`);
+  const gameId = await upsertGame(game);
+
+  let setsResp;
+  try {
+    const res = await fetch(`${PALWORLDTCG_BASE}/sets`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+    setsResp = await res.json();
+  } catch (err) {
+    console.log(`  Sets fetch failed: ${err.message}`);
+    return;
+  }
+
+  const sets = setsResp.data || [];
+  console.log(`Found ${sets.length} sets`);
+
+  const setsToProcess = TEST_MODE ? sets.slice(0, 1) : sets;
+  if (TEST_MODE) console.log('TEST MODE: only processing the first set');
+
+  for (const set of setsToProcess) {
+    await sleep(DELAY_MS);
+    const setCode = set.code || set.set_code;
+    const setName = set.name || setCode;
+    console.log(`  Set: ${setName}`);
+
+    let setDetail;
+    try {
+      const res = await fetch(`${PALWORLDTCG_BASE}/sets/${setCode}`, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+      setDetail = await res.json();
+    } catch (err) {
+      console.log(`    Skipped (fetch error): ${err.message}`);
+      continue;
+    }
+
+    const cards = (setDetail.data && setDetail.data.cards) || [];
+    // Only revealed, non-parallel base cards for now, keeps this consistent
+    // with the rest of the catalog (one row per card, no alt-art duplicates).
+    const baseCards = cards.filter((c) => (c.status || 'revealed') === 'revealed');
+
+    if (baseCards.length === 0) {
+      console.log('    No revealed cards yet, skipping set');
+      continue;
+    }
+
+    const { data: setRow, error: setError } = await supabase
+      .from('sets')
+      .upsert(
+        {
+          game_id: gameId,
+          name: setName,
+          set_code: setCode || null,
+          total_cards: baseCards.length,
+          release_date: set.release_date || set.released_at || null,
+        },
+        { onConflict: 'game_id,name' }
+      )
+      .select()
+      .single();
+
+    if (setError) {
+      console.log(`    Set upsert failed: ${setError.message}`);
+      continue;
+    }
+
+    const cardRows = baseCards.map((card) => ({
+      set_id: setRow.id,
+      name: card.name,
+      card_number: card.card_number || null,
+      rarity: card.rarity || null,
+      card_type: card.card_type || null,
+      image_url: card.image_url || card.thumbnail_url || null,
+      // No TCGCSV product exists for this game; namespace the palworldtcg.gg
+      // slug into the same unique column the TCGCSV path uses, so upserts
+      // still de-dupe cleanly without a schema change.
+      tcgcsv_product_id: `palworldtcg:${card.slug}`,
+    }));
+
+    const insertedCards = [];
+    for (let i = 0; i < cardRows.length; i += 500) {
+      const batch = cardRows.slice(i, i + 500);
+      const { data, error } = await supabase
+        .from('cards')
+        .upsert(batch, { onConflict: 'tcgcsv_product_id' })
+        .select();
+      if (error) {
+        console.log(`    Card batch upsert failed: ${error.message}`);
+        continue;
+      }
+      insertedCards.push(...data);
+    }
+
+    // No pricing source for Palworld yet, price_history intentionally skipped.
+    console.log(`    Imported ${insertedCards.length} cards (no pricing source available yet)`);
+  }
+}
+
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'MXN', 'BRL'];
 
 async function updateExchangeRates() {
@@ -344,7 +449,11 @@ async function updateExchangeRates() {
 async function main() {
   await updateExchangeRates();
   for (const game of GAMES) {
-    await importGame(game);
+    if (game.source === 'palworldtcg') {
+      await importPalworldGame(game);
+    } else {
+      await importGame(game);
+    }
   }
   console.log('\nDone.');
 }
