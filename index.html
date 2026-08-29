@@ -2022,6 +2022,7 @@
 
         const card = document.createElement('div');
         card.className = 'set-card';
+        card.style.position = 'relative';
         card.draggable = true;
         card.dataset.masterSetId = row.id;
         card.addEventListener('dragstart', handleSetDragStart);
@@ -2031,6 +2032,7 @@
         card.addEventListener('dragend', handleSetDragEnd);
         card.addEventListener('click', () => openSetChecklist(set.id, set.name));
         card.innerHTML = `
+          <button style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); unflagMasterSet('${row.id}')" title="Remove from Set Completion"><i class="ti ti-x" aria-hidden="true"></i></button>
           <p class="name">${set.name}</p>
           <p class="game">${set.games?.name || ''}</p>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -2044,6 +2046,13 @@
   }
 
   let currentMasterSets = [];
+
+  async function unflagMasterSet(userMasterSetRowId) {
+    if (!confirm('Remove this set from Set Completion? Your collection is unaffected.')) return;
+    const { error } = await supabaseClient.from('user_master_sets').delete().eq('id', userMasterSetRowId);
+    if (error) { console.error('Unflag master set error:', error); return; }
+    loadDashboard(loadedUserId);
+  }
   let draggedSetCard = null;
 
   // Caps the Set Completion sidebar so it doesn't run far past the main
