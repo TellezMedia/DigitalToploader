@@ -596,8 +596,8 @@
     <div class="filters">
       <select id="game-filter" onchange="onGameChange()"><option value="">All games</option></select>
       <select id="set-filter"><option value="">All sets</option></select>
-      <input type="text" id="search-input" placeholder="Search card name..." onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
-      <input type="text" id="cardnum-input" placeholder="Card # (choose set first)" onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
+      <input type="text" id="search-input" placeholder="Search card name..." autocomplete="off" onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
+      <input type="text" id="cardnum-input" placeholder="Card # (choose set first)" autocomplete="off" onkeydown="if(event.key==='Enter' && this.value.trim()) searchCards()">
       <button class="add-btn" onclick="searchCards()">Search</button>
     </div>
     <div id="search-results"></div>
@@ -684,7 +684,7 @@
 <div id="search-toast"></div>
 
 
-<div id="card-detail-overlay">
+<div id="card-detail-overlay" onclick="if(event.target === this) closeCardDetail()">
   <div class="detail-panel" id="detail-panel-content"></div>
 </div>
 
