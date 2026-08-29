@@ -1553,7 +1553,9 @@
     for (const { set, rows: setRows } of sortedSets) {
       const block = document.createElement('div');
       block.className = 'view-all-set-block';
-      block.innerHTML = `<p class="set-name">${set.name} <span style="color:var(--text-muted); font-weight:400;">(${setRows.length})</span></p><div class="set-gallery" style="display:grid;"></div>`;
+      const uniqueOwned = new Set(setRows.map((r) => r.cards.id)).size;
+      const countLabel = set.total_cards ? `${uniqueOwned}/${set.total_cards}` : `${uniqueOwned}`;
+      block.innerHTML = `<p class="set-name">${set.name} <span style="color:var(--text-muted); font-weight:400;">(${countLabel})</span></p><div class="set-gallery" style="display:grid;"></div>`;
       const gallery = block.querySelector('.set-gallery');
       for (const row of setRows) {
         const card = row.cards;
