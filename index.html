@@ -990,7 +990,7 @@
     let userBinders = [];
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id, binder_page, binder_slot').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
       const { data: binders } = await supabaseClient
         .from('binders').select('id, name').eq('user_id', loadedUserId).order('created_at', { ascending: true });
@@ -1043,6 +1043,16 @@
               <option value="">Unassigned</option>
               ${userBinders.map((b) => `<option value="${b.id}" ${ownedRow.binder_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
             </select>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div style="flex:1;">
+                <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Page</label>
+                <input type="number" id="detail-binder-page-input" min="1" value="${ownedRow.binder_page ?? ''}" placeholder="e.g. 3" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Slot</label>
+                <input type="number" id="detail-binder-slot-input" min="1" value="${ownedRow.binder_slot ?? ''}" placeholder="e.g. 5" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              </div>
+            </div>
             <button class="add-btn" style="width:100%; padding:6px;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
           </div>
           ` : ''}
@@ -1235,10 +1245,14 @@
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
     const binderSelect = document.getElementById('detail-binder-select');
     const binderId = binderSelect && binderSelect.value ? binderSelect.value : null;
+    const pageInput = document.getElementById('detail-binder-page-input')?.value;
+    const slotInput = document.getElementById('detail-binder-slot-input')?.value;
+    const binderPage = pageInput ? parseInt(pageInput) : null;
+    const binderSlot = slotInput ? parseInt(slotInput) : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId, binder_page: binderPage, binder_slot: binderSlot })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }
