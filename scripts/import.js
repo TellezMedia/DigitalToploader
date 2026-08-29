@@ -327,6 +327,17 @@ async function importPalworldGame(game) {
   console.log(`\n=== ${game.name} ===`);
   const gameId = await upsertGame(game);
 
+  // palworldtcg.gg's API can return image paths as site-relative (e.g.
+  // "/img/card-images/official/PROMO/SOUL-007.png") rather than full URLs.
+  // Stored as-is, those resolve against OUR domain when rendered in an
+  // <img> tag, producing a broken link at digitaltoploader.com instead of
+  // palworldtcg.gg. Always resolve to an absolute URL before saving.
+  function resolvePalworldImageUrl(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    return `https://palworldtcg.gg${path.startsWith('/') ? '' : '/'}${path}`;
+  }
+
   let setsResp;
   try {
     const res = await fetch(`${PALWORLDTCG_BASE}/sets`, { headers: { Accept: 'application/json' } });
@@ -407,7 +418,7 @@ async function importPalworldGame(game) {
       card_number: card.card_number || null,
       rarity: card.rarity || null,
       card_type: card.card_type || null,
-      image_url: card.image_url || card.thumbnail_url || null,
+      image_url: resolvePalworldImageUrl(card.image_url || card.thumbnail_url),
       // No TCGCSV product exists for this game; namespace the palworldtcg.gg
       // slug into the same unique column the TCGCSV path uses, so upserts
       // still de-dupe cleanly without a schema change.
