@@ -772,6 +772,8 @@
 
       <div class="profile-panel" id="log-purchase-panel" style="margin-top:14px;">
         <p class="section-label">Log a purchase</p>
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Game</label>
+        <select id="purchase-game-select" onchange="onPurchaseGameChange()" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
         <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Set</label>
         <select id="purchase-set-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
         <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Product</label>
@@ -1470,24 +1472,44 @@
     `;
   }
 
+  let purchaseSetsByGame = new Map(); // gameId -> [{id, name}]
+
   async function loadSetsForPurchaseDropdown() {
     const { data: games } = await supabaseClient.from('games').select('id, name').order('name');
-    const select = document.getElementById('purchase-set-select');
-    if (!select || !games) return;
-    select.innerHTML = '';
+    const gameSelect = document.getElementById('purchase-game-select');
+    if (!gameSelect || !games) return;
+
+    gameSelect.innerHTML = '';
+    purchaseSetsByGame = new Map();
+
     for (const g of games) {
       const { data: sets } = await supabaseClient.from('sets').select('id, name').eq('game_id', g.id).order('name');
       if (!sets || sets.length === 0) continue;
-      const group = document.createElement('optgroup');
-      group.label = g.name;
-      for (const s of sets) {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.name;
-        group.appendChild(opt);
-      }
-      select.appendChild(group);
+      purchaseSetsByGame.set(g.id, sets);
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = g.name;
+      gameSelect.appendChild(opt);
     }
+
+    populatePurchaseSetOptions(gameSelect.value);
+  }
+
+  function populatePurchaseSetOptions(gameId) {
+    const setSelect = document.getElementById('purchase-set-select');
+    if (!setSelect) return;
+    const sets = purchaseSetsByGame.get(gameId) || [];
+    setSelect.innerHTML = '';
+    for (const s of sets) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      setSelect.appendChild(opt);
+    }
+  }
+
+  function onPurchaseGameChange() {
+    populatePurchaseSetOptions(document.getElementById('purchase-game-select').value);
   }
 
   async function logProductPurchase() {
