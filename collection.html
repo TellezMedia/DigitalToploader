@@ -544,17 +544,6 @@
       <a href="binders.html">Binders</a>
     </div>
     <div>
-      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
-        <option value="USD">🇺🇸 USD</option>
-        <option value="EUR">🇪🇺 EUR</option>
-        <option value="GBP">🇬🇧 GBP</option>
-        <option value="CAD">🇨🇦 CAD</option>
-        <option value="AUD">🇦🇺 AUD</option>
-        <option value="JPY">🇯🇵 JPY</option>
-        <option value="MXN">🇲🇽 MXN</option>
-        <option value="BRL">🇧🇷 BRL</option>
-      </select>
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <div class="user-menu" id="user-menu">
         <button class="user-menu-trigger" onclick="toggleUserMenu()">
           <img id="user-avatar" class="user-avatar" src="" alt="" style="display:none;">
@@ -566,6 +555,17 @@
           <a href="#" onclick="signOut(); return false;">Sign out</a>
         </div>
       </div>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
+      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
+        <option value="USD">🇺🇸 USD</option>
+        <option value="EUR">🇪🇺 EUR</option>
+        <option value="GBP">🇬🇧 GBP</option>
+        <option value="CAD">🇨🇦 CAD</option>
+        <option value="AUD">🇦🇺 AUD</option>
+        <option value="JPY">🇯🇵 JPY</option>
+        <option value="MXN">🇲🇽 MXN</option>
+        <option value="BRL">🇧🇷 BRL</option>
+      </select>
     </div>
   </div>
 
@@ -590,6 +590,11 @@
       <a href="#" onclick="exportCollectionCSV(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
         <i class="ti ti-file-export" aria-hidden="true"></i> Export CSV
       </a>
+      <select id="csv-source-select" style="font-size:12px; padding:3px 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px;">
+        <option value="template">Digital TopLoader template</option>
+        <option value="palworldtcg">palworldtcg.gg export</option>
+        <option value="other">Other CSV</option>
+      </select>
       <a href="#" onclick="document.getElementById('csv-import-input').click(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
         <i class="ti ti-file-import" aria-hidden="true"></i> Import CSV
       </a>
@@ -1159,30 +1164,47 @@
   function importCollectionCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
+    const source = document.getElementById('csv-source-select')?.value || 'other';
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        await processImportRows(results.data);
+        await processImportRows(results.data, source);
         event.target.value = ''; // reset so the same file can be re-selected later
       },
     });
   }
 
-  async function processImportRows(rows) {
+  // Column name variants per known export source. "other" is the generic
+  // fallback and tries the widest net of common alternate names. Add a new
+  // entry here (and a matching <option> in the source dropdown) once a
+  // site's exact export format is confirmed with a real sample file.
+  const CSV_SOURCE_PROFILES = {
+    template: {
+      game: ['Game'], set: ['Set'], name: ['Card Name'], number: ['Card Number'],
+      variant: ['Variant'], language: ['Language'], quantity: ['Quantity'], condition: ['Condition'],
+    },
+    palworldtcg: {
+      game: ['Game'], set: ['Set'], name: ['Name'], number: ['Number'],
+      variant: ['Variant'], language: ['Language'], quantity: ['Quantity'], condition: ['Condition'],
+    },
+    other: {
+      game: ['Game'], set: ['Set'], name: ['Card Name', 'Name', 'Card'], number: ['Card Number', 'Number', 'Card #', 'Collector Number'],
+      variant: ['Variant', 'Printing'], language: ['Language', 'Lang'], quantity: ['Quantity', 'Qty', 'Count'], condition: ['Condition'],
+    },
+  };
+
+  async function processImportRows(rows, source) {
     const summaryDiv = document.getElementById('import-summary');
     summaryDiv.style.display = 'block';
     summaryDiv.innerHTML = '<p>Importing...</p>';
 
     let imported = 0;
     const unmatched = [];
+    const profile = CSV_SOURCE_PROFILES[source] || CSV_SOURCE_PROFILES.other;
 
-    // Accepts a few common alternate header names, so exports from other
-    // sites (e.g. palworldtcg.gg's own collection export, which uses "Name"
-    // and "Number" instead of "Card Name"/"Card Number") can be dropped in
-    // without renaming columns first.
-    const pick = (row, ...keys) => {
+    const pick = (row, keys) => {
       for (const k of keys) {
         if (row[k] != null && String(row[k]).trim() !== '') return String(row[k]).trim();
       }
@@ -1196,14 +1218,14 @@
     };
 
     for (const row of rows) {
-      const game = pick(row, 'Game');
-      const set = pick(row, 'Set');
-      const name = pick(row, 'Card Name', 'Name');
-      const cardNumber = pick(row, 'Card Number', 'Number');
-      const variant = pick(row, 'Variant') || 'Normal';
-      const language = normalizeLanguage(pick(row, 'Language'));
-      const qty = parseInt(row['Quantity']) || 1;
-      const condition = pick(row, 'Condition') || 'Near Mint';
+      const game = pick(row, profile.game);
+      const set = pick(row, profile.set);
+      const name = pick(row, profile.name);
+      const cardNumber = pick(row, profile.number);
+      const variant = pick(row, profile.variant) || 'Normal';
+      const language = normalizeLanguage(pick(row, profile.language));
+      const qty = parseInt(pick(row, profile.quantity)) || 1;
+      const condition = pick(row, profile.condition) || 'Near Mint';
 
       if (!name) continue;
 

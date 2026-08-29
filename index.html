@@ -677,17 +677,6 @@
       <a href="binders.html" style="color: var(--text-muted); text-decoration: none; margin-right: 16px; font-size: 14px;">Binders</a>
     </div>
     <div>
-      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
-        <option value="USD">🇺🇸 USD</option>
-        <option value="EUR">🇪🇺 EUR</option>
-        <option value="GBP">🇬🇧 GBP</option>
-        <option value="CAD">🇨🇦 CAD</option>
-        <option value="AUD">🇦🇺 AUD</option>
-        <option value="JPY">🇯🇵 JPY</option>
-        <option value="MXN">🇲🇽 MXN</option>
-        <option value="BRL">🇧🇷 BRL</option>
-      </select>
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <div class="user-menu" id="user-menu">
         <button class="user-menu-trigger" onclick="toggleUserMenu()">
           <img id="user-avatar" class="user-avatar" src="" alt="" style="display:none;">
@@ -699,6 +688,17 @@
           <a href="#" onclick="signOut(); return false;">Sign out</a>
         </div>
       </div>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
+      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
+        <option value="USD">🇺🇸 USD</option>
+        <option value="EUR">🇪🇺 EUR</option>
+        <option value="GBP">🇬🇧 GBP</option>
+        <option value="CAD">🇨🇦 CAD</option>
+        <option value="AUD">🇦🇺 AUD</option>
+        <option value="JPY">🇯🇵 JPY</option>
+        <option value="MXN">🇲🇽 MXN</option>
+        <option value="BRL">🇧🇷 BRL</option>
+      </select>
     </div>
   </div>
 
