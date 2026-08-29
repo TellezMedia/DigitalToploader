@@ -349,19 +349,31 @@ async function importPalworldGame(game) {
     const setName = set.name || setCode;
     console.log(`  Set: ${setName}`);
 
-    let setDetail;
+    // Use the /cards endpoint (not /sets/{code}) with include_parallels=true,
+    // paginated, so alt-art parallels (TSP/TSR/SEC/SR/SP, e.g. "BP01-001-OSR")
+    // get imported alongside base cards. These parallel card numbers are what
+    // show up in palworldtcg.gg's own collection CSV export, so importing
+    // them here is what lets that export match against our catalog.
+    let cards = [];
     try {
-      const res = await fetch(`${PALWORLDTCG_BASE}/sets/${setCode}`, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-      setDetail = await res.json();
+      let page = 1;
+      const perPage = 100;
+      while (true) {
+        const url = `${PALWORLDTCG_BASE}/cards?set=${encodeURIComponent(setCode)}&include_parallels=true&per_page=${perPage}&page=${page}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+        const json = await res.json();
+        const pageCards = json.data || [];
+        cards.push(...pageCards);
+        if (pageCards.length < perPage) break;
+        page++;
+        await sleep(150);
+      }
     } catch (err) {
       console.log(`    Skipped (fetch error): ${err.message}`);
       continue;
     }
 
-    const cards = (setDetail.data && setDetail.data.cards) || [];
-    // Only revealed, non-parallel base cards for now, keeps this consistent
-    // with the rest of the catalog (one row per card, no alt-art duplicates).
     const baseCards = cards.filter((c) => (c.status || 'revealed') === 'revealed');
 
     if (baseCards.length === 0) {

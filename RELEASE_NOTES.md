@@ -20,6 +20,8 @@ independently.
 ## v0.20 (2026-08-24)
 
 **Fixed:**
+- CSV collection import now accepts common alternate header names ("Name"/"Number" as well as "Card Name"/"Card Number"), and normalizes language codes like "en"/"ja" to "English"/"Japanese". This specifically fixes importing palworldtcg.gg's own collection-export CSV, which uses those column names and codes, previously every row silently failed to match since the importer only recognized its own exact template headers.
+- Palworld catalog import now pulls from the `/cards` endpoint with `include_parallels=true` instead of `/sets/{code}`, so alt-art parallel cards (e.g. `BP01-001-OSR`) are actually in the catalog. These parallel card numbers are what appear in palworldtcg.gg's own CSV export, so without this fix those rows could never match regardless of the header fix above.
 - `scripts/import.js` now actually includes the 4 new TCGs (One Piece, Digimon, Star Wars: Unlimited, Flesh and Blood) in its `GAMES` config with correct TCGCSV category IDs. Previous sessions built and confirmed this, but it never made it into the committed script, that's why the "Browse & add cards" game dropdown was only showing 3 games. Root `package.json` was also corrupted (an accidental duplicate of `import.js`), now restored as a real manifest.
 - Rebuilt the pokemontcg.io/Scryfall/Lorcast hi-res image lookup in `import.js` from scratch, it had also never made it into the repo despite being confirmed working in an earlier session. Set-name matching now includes a fallback containment match, which also fixes promo sets failing to match due to inconsistent naming across sources (e.g. "Scarlet & Violet Black Star Promos" vs "Promos").
 
