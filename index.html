@@ -8,6 +8,7 @@
 <title>Digital TopLoader – TCG Collection Tracker & Portfolio Value</title>
 <script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
@@ -380,6 +381,22 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 10px;
+    position: relative;
+  }
+  .rarity-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(10, 14, 26, 0.85);
+    color: var(--gold);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    z-index: 2;
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.15);
   }
   .recent-card img, .recent-card .thumb-placeholder {
     width: 100%;
@@ -786,8 +803,11 @@
           <option value="Other">Other</option>
         </select>
         <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Price paid</label>
-        <input type="number" id="purchase-price-input" min="0" step="0.01" placeholder="e.g. 149.99" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+        <input type="number" id="purchase-price-input" min="0" step="0.01" placeholder="e.g. 149.99" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Source</label>
+        <input type="text" id="purchase-source-input" placeholder="e.g. Local game store, eBay" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
         <button class="add-btn" style="width:100%; padding:7px;" onclick="logProductPurchase()">Add purchase</button>
+        <button class="add-btn" style="width:100%; padding:7px; margin-top:8px; background:transparent; border:1px solid var(--border); color:var(--text);" onclick="exportPurchasesToExcel()">Export to Excel</button>
         <div id="purchase-log-list" style="margin-top:12px;"></div>
       </div>
     </div>
@@ -860,6 +880,28 @@
   }
 
   loadExchangeRates();
+
+  const RARITY_BADGE_MAP = {
+    'ace spec rare': 'ACE', 'amazing rare': 'AR', 'basic': 'B', 'black white rare': 'BWR',
+    'classic collection': 'CC', 'common': 'C', 'double rare': 'RR', 'enchanted': 'EN',
+    'epic': 'EP', 'fabled': 'FB', 'futuristic rare': 'FR', 'gold': 'GLD', 'holo rare': 'HR',
+    'hyper rare': 'HYR', 'iconic': 'IC', 'illustration rare': 'IR', 'legendary': 'L',
+    'majestic': 'MAJ', 'marvel': 'MRV', 'mega attack rare': 'MAR', 'mega hyper rare': 'MHR',
+    'pirate booty': 'PB', 'prism rare': 'PRM', 'promo': 'PROMO', 'quest': 'QST',
+    'radiant rare': 'RAD', 'rainbow rare': 'RA', 'rare': 'R', 'rare ace': 'RAC',
+    'rare break': 'BRK', 'secret rare': 'SR', 'shiny holo rare': 'SHR', 'shiny rare': 'SHY',
+    'shiny ultra rare': 'SUR', 'special': 'SPC', 'special illustration rare': 'SIR',
+    'special rare': 'SPR', 'super rare': 'SUP', 'token': 'TKN', 'ultimate rare': 'UTR',
+    'ultra rare': 'UR', 'uncommon': 'U',
+  };
+
+  function rarityBadge(rarity) {
+    if (!rarity) return '';
+    const lower = rarity.trim().toLowerCase();
+    if (lower === 'none' || lower === 'unconfirmed') return '';
+    const label = RARITY_BADGE_MAP[lower] || rarity.trim().toUpperCase().slice(0, 4);
+    return `<span class="rarity-badge">${label}</span>`;
+  }
 
   function toggleUserMenu() {
     document.getElementById('user-menu-dropdown')?.classList.toggle('open');
@@ -1259,6 +1301,7 @@
         ${card?.image_url
           ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
           : `<div class="thumb-placeholder"></div>`}
+        ${rarityBadge(card?.rarity)}
         <p class="name">${card?.name || ''}</p>
         <p class="meta">${card?.sets?.name || ''}${card?.rarity ? ' · ' + card.rarity : ''}</p>
         ${price ? `<p class="price">${formatPrice(price)}</p>` : ''}
@@ -1517,16 +1560,18 @@
     const productType = document.getElementById('purchase-product-select').value;
     const priceInput = document.getElementById('purchase-price-input').value;
     const price = priceInput ? parseFloat(priceInput) : null;
+    const source = document.getElementById('purchase-source-input').value.trim() || null;
 
     if (!setId || !price) { alert('Choose a set and enter a price paid.'); return; }
 
     const { error } = await supabaseClient
       .from('product_purchases')
-      .insert({ user_id: loadedUserId, set_id: setId, product_type: productType, price_paid: price });
+      .insert({ user_id: loadedUserId, set_id: setId, product_type: productType, price_paid: price, source });
 
     if (error) { console.error('Log purchase error:', error); return; }
 
     document.getElementById('purchase-price-input').value = '';
+    document.getElementById('purchase-source-input').value = '';
     loadPurchaseLog(loadedUserId);
     loadDashboard(loadedUserId);
   }
@@ -1557,6 +1602,34 @@
     await supabaseClient.from('product_purchases').delete().eq('id', id);
     loadPurchaseLog(loadedUserId);
     loadDashboard(loadedUserId);
+  }
+
+  async function exportPurchasesToExcel() {
+    const { data, error } = await supabaseClient
+      .from('product_purchases')
+      .select('purchased_at, product_type, price_paid, source, sets(name, games(name))')
+      .eq('user_id', loadedUserId)
+      .order('purchased_at', { ascending: false });
+
+    if (error) { console.error('Export error:', error); alert('Export failed, see console.'); return; }
+    if (!data || data.length === 0) { alert('No purchases logged yet.'); return; }
+
+    const rows = data.map((row) => ({
+      Date: row.purchased_at ? new Date(row.purchased_at).toLocaleDateString() : '',
+      Game: row.sets?.games?.name || '',
+      Set: row.sets?.name || '',
+      Product: row.product_type || '',
+      Source: row.source || '',
+      'Price Paid': Number(row.price_paid) || 0,
+    }));
+
+    const totalSpend = rows.reduce((sum, r) => sum + r['Price Paid'], 0);
+    rows.push({ Date: '', Game: '', Set: '', Product: '', Source: 'TOTAL SPEND', 'Price Paid': totalSpend });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchases');
+    XLSX.writeFile(workbook, `digitaltoploader-purchases-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   async function loadDashboard(userId) {

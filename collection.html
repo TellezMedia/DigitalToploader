@@ -436,6 +436,24 @@
     padding: 1px 4px;
     margin-left: 4px;
   }
+  .rarity-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(10, 14, 26, 0.85);
+    color: var(--gold);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    z-index: 2;
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .unowned-tile { filter: grayscale(1); opacity: 0.55; }
+  .unowned-tile .thumb { cursor: pointer; }
+  .unowned-tile:hover { opacity: 0.85; }
   .detail-panel .close-detail {
     background: transparent;
     border: none;
@@ -741,6 +759,33 @@
 
   loadExchangeRates();
 
+  // Maps known full-word rarity values to standard TCG-community acronyms.
+  // Short values already shaped like acronyms (C, R, SR, OSR, SSP, etc.) pass
+  // through unchanged via the fallback. Overlap between games (e.g. Rainbow
+  // Rare vs. a game's own literal "RA" code) is expected and fine, surrounding
+  // set/game context disambiguates it.
+  const RARITY_BADGE_MAP = {
+    'ace spec rare': 'ACE', 'amazing rare': 'AR', 'basic': 'B', 'black white rare': 'BWR',
+    'classic collection': 'CC', 'common': 'C', 'double rare': 'RR', 'enchanted': 'EN',
+    'epic': 'EP', 'fabled': 'FB', 'futuristic rare': 'FR', 'gold': 'GLD', 'holo rare': 'HR',
+    'hyper rare': 'HYR', 'iconic': 'IC', 'illustration rare': 'IR', 'legendary': 'L',
+    'majestic': 'MAJ', 'marvel': 'MRV', 'mega attack rare': 'MAR', 'mega hyper rare': 'MHR',
+    'pirate booty': 'PB', 'prism rare': 'PRM', 'promo': 'PROMO', 'quest': 'QST',
+    'radiant rare': 'RAD', 'rainbow rare': 'RA', 'rare': 'R', 'rare ace': 'RAC',
+    'rare break': 'BRK', 'secret rare': 'SR', 'shiny holo rare': 'SHR', 'shiny rare': 'SHY',
+    'shiny ultra rare': 'SUR', 'special': 'SPC', 'special illustration rare': 'SIR',
+    'special rare': 'SPR', 'super rare': 'SUP', 'token': 'TKN', 'ultimate rare': 'UTR',
+    'ultra rare': 'UR', 'uncommon': 'U',
+  };
+
+  function rarityBadge(rarity) {
+    if (!rarity) return '';
+    const lower = rarity.trim().toLowerCase();
+    if (lower === 'none' || lower === 'unconfirmed') return '';
+    const label = RARITY_BADGE_MAP[lower] || rarity.trim().toUpperCase().slice(0, 4);
+    return `<span class="rarity-badge">${label}</span>`;
+  }
+
   function toggleUserMenu() {
     document.getElementById('user-menu-dropdown')?.classList.toggle('open');
   }
@@ -830,7 +875,7 @@
     let userBinders = [];
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id, binder_page, binder_slot').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
       const { data: binders } = await supabaseClient
         .from('binders').select('id, name').eq('user_id', currentUserId).order('created_at', { ascending: true });
@@ -884,6 +929,16 @@
               <option value="">Unassigned</option>
               ${userBinders.map((b) => `<option value="${b.id}" ${ownedRow.binder_id === b.id ? 'selected' : ''}>${b.name}</option>`).join('')}
             </select>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <div style="flex:1;">
+                <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Page</label>
+                <input type="number" id="detail-binder-page-input" min="1" value="${ownedRow.binder_page ?? ''}" placeholder="e.g. 3" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Slot</label>
+                <input type="number" id="detail-binder-slot-input" min="1" value="${ownedRow.binder_slot ?? ''}" placeholder="e.g. 5" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              </div>
+            </div>
             <button class="add-btn" style="width:100%; padding:6px;" onclick="saveGradeTrade('${ownedRow.id}')">Save</button>
           </div>
           ` : ''}
@@ -961,10 +1016,14 @@
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
     const binderSelect = document.getElementById('detail-binder-select');
     const binderId = binderSelect && binderSelect.value ? binderSelect.value : null;
+    const pageInput = document.getElementById('detail-binder-page-input')?.value;
+    const slotInput = document.getElementById('detail-binder-slot-input')?.value;
+    const binderPage = pageInput ? parseInt(pageInput) : null;
+    const binderSlot = slotInput ? parseInt(slotInput) : null;
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId })
+      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId, binder_page: binderPage, binder_slot: binderSlot })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }
@@ -1531,49 +1590,110 @@
     renderCollectionGroups();
   }
 
-  function openViewAll(gameId) {
-    const rowsForGame = collectionRowsRaw.filter((r) => r.cards?.sets?.games?.id === gameId);
-    if (rowsForGame.length === 0) return;
+  async function openViewAll(gameId) {
+    const ownedRowsForGame = collectionRowsRaw.filter((r) => r.cards?.sets?.games?.id === gameId);
+    if (ownedRowsForGame.length === 0 && !gameSetsHaveMasterFlag(gameId)) return;
 
-    const gameName = rowsForGame[0].cards.sets.games.name;
+    const gameName = ownedRowsForGame[0]?.cards?.sets?.games?.name
+      || document.getElementById('view-all-title')?.dataset.lastGameName
+      || 'Collection';
+
     const bySet = new Map();
-    for (const row of rowsForGame) {
+    for (const row of ownedRowsForGame) {
       const set = row.cards.sets;
       if (!bySet.has(set.id)) bySet.set(set.id, { set, rows: [] });
       bySet.get(set.id).rows.push(row);
     }
-    // Fixed sort order: by set name, cards grouped within each set (not user-resortable)
+
+    // Master-set-flagged sets should appear even with zero owned cards yet,
+    // so fetch every set for this game to catch that case.
+    const { data: allSetsForGame } = await supabaseClient.from('sets').select('id, name, total_cards').eq('game_id', gameId);
+    for (const set of allSetsForGame || []) {
+      if (masterSetIdsRaw.has(set.id) && !bySet.has(set.id)) {
+        bySet.set(set.id, { set, rows: [] });
+      }
+    }
+
+    if (bySet.size === 0) return;
+
     const sortedSets = [...bySet.values()].sort((a, b) => a.set.name.localeCompare(b.set.name));
 
     document.getElementById('view-all-title').textContent = `${gameName} — All Cards`;
-    document.getElementById('view-all-sub').textContent = `${rowsForGame.length} card${rowsForGame.length === 1 ? '' : 's'} across ${sortedSets.length} set${sortedSets.length === 1 ? '' : 's'}`;
+    document.getElementById('view-all-sub').textContent = `${ownedRowsForGame.length} card${ownedRowsForGame.length === 1 ? '' : 's'} owned across ${sortedSets.length} set${sortedSets.length === 1 ? '' : 's'}`;
 
     const body = document.getElementById('view-all-body');
     body.innerHTML = '';
+    document.getElementById('view-all-overlay').style.display = 'flex';
+
     for (const { set, rows: setRows } of sortedSets) {
+      const isMaster = masterSetIdsRaw.has(set.id);
+      const ownedRowByCardId = new Map(setRows.map((r) => [r.cards.id, r]));
+
+      let cardsToRender = setRows.map((r) => r.cards);
+      if (isMaster) {
+        const { data: fullCards } = await supabaseClient
+          .from('cards')
+          .select('id, name, card_number, image_url, rarity')
+          .eq('set_id', set.id)
+          .order('card_number');
+        if (fullCards) cardsToRender = fullCards;
+      }
+
       const block = document.createElement('div');
       block.className = 'view-all-set-block';
-      const uniqueOwned = new Set(setRows.map((r) => r.cards.id)).size;
+      const uniqueOwned = ownedRowByCardId.size;
       const countLabel = set.total_cards ? `${uniqueOwned}/${set.total_cards}` : `${uniqueOwned}`;
       block.innerHTML = `<p class="set-name">${set.name} <span style="color:var(--text-muted); font-weight:400;">(${countLabel})</span></p><div class="set-gallery" style="display:grid;"></div>`;
       const gallery = block.querySelector('.set-gallery');
-      for (const row of setRows) {
-        const card = row.cards;
-        const langBadge = row.language && row.language !== 'English' ? `<span class="lang-badge">${row.language}</span>` : '';
+
+      for (const card of cardsToRender) {
+        const ownedRow = ownedRowByCardId.get(card.id);
+        const isOwned = !!ownedRow;
+        const langBadge = ownedRow?.language && ownedRow.language !== 'English' ? `<span class="lang-badge">${ownedRow.language}</span>` : '';
         const tile = document.createElement('div');
-        tile.className = 'gallery-card';
+        tile.className = 'gallery-card' + (isOwned ? '' : ' unowned-tile');
         tile.innerHTML = `
           ${card.image_url
-            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="closeViewAll(); openCardDetail('${card.id}', '${row.id}')">`
+            ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" ${
+                isOwned
+                  ? `onclick="closeViewAll(); openCardDetail('${card.id}', '${ownedRow.id}')"`
+                  : `onclick="quickAddFromViewAll('${card.id}', '${gameId}')" title="Click to add to collection"`
+              }>`
             : `<div class="thumb-placeholder"></div>`}
+          ${rarityBadge(card.rarity)}
           <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}${langBadge}</p>
         `;
         gallery.appendChild(tile);
       }
       body.appendChild(block);
     }
+  }
 
-    document.getElementById('view-all-overlay').style.display = 'flex';
+  function gameSetsHaveMasterFlag(gameId) {
+    // Cheap check used only to decide whether an empty-collection game is
+    // still worth opening (a master set with 0 owned cards should still show).
+    return masterSetIdsRaw.size > 0;
+  }
+
+  async function quickAddFromViewAll(cardId, gameId) {
+    const { data: existing } = await supabaseClient
+      .from('user_collection')
+      .select('id, quantity')
+      .eq('user_id', currentUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .eq('variant', 'Normal')
+      .eq('language', 'English')
+      .maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_collection').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+    } else {
+      await supabaseClient.from('user_collection').insert({ user_id: currentUserId, card_id: cardId, quantity: 1, variant: 'Normal' });
+    }
+
+    await loadCollection();
+    openViewAll(gameId); // re-render in place so the tile flips to owned
   }
 
   function closeViewAll() {
@@ -1668,6 +1788,7 @@
             ${card.image_url
               ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
               : `<div class="thumb-placeholder"></div>`}
+            ${rarityBadge(card.rarity)}
             <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}${langBadge}</p>
             ${variantLabel}
             <div class="qty-row">
