@@ -15,6 +15,9 @@ pending below.
 | `schema_addition_v6.sql` | Applied | Adds `language` column to `user_collection` (v0.20) |
 | `schema_addition_v7.sql` | Applied | Adds `exchange_rates` table for currency conversion (v0.20) |
 | `schema_addition_v8.sql` | **Pending** | Social layer: adds `username`/`is_public` to `user_profiles`, adds `follows` table (v0.50) |
+| `schema_addition_v9.sql` | **Pending** | Adds `import_batches`/`import_batch_items` for "Undo last import" (v0.20) |
+| `schema_addition_v10.sql` | **Pending** | Adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases` (v0.21) |
+| `schema_addition_v11.sql` | **Pending** | Adds `custom_master_sets` table and `distinct_card_types`/`distinct_card_rarities` views (v0.22) |
 
 When the next release adds a schema change, add a new `schema_addition_vN.sql`
 and a new row here rather than editing an already-applied file. Note which

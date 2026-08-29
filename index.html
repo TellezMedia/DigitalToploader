@@ -725,8 +725,17 @@
       <div class="stat-card"><p class="label">Unique cards</p><p class="value" id="stat-unique">-</p><p class="sub" id="stat-sets-sub">-</p></div>
       <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
       <hr class="sidebar-divider">
-      <p class="sidebar-subhead">Set completion (drag to reorder)</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <p class="sidebar-subhead" style="margin:0;">Set completion (drag to reorder)</p>
+      </div>
       <div id="set-grid-container"></div>
+
+      <hr class="sidebar-divider">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <p class="sidebar-subhead" style="margin:0;">Custom master sets</p>
+        <a href="#" onclick="openCustomMasterSetModal(); return false;" style="color: var(--accent-light); font-size: 12px; text-decoration: none;"><i class="ti ti-plus" aria-hidden="true"></i> Custom</a>
+      </div>
+      <div id="custom-set-grid-container"></div>
     </div>
     <div>
       <div class="highlight-section" id="top-card-section" onclick="openCardDetail(topCardId, topCardRowId)">
@@ -824,6 +833,35 @@
     <h3 id="checklist-title">Set</h3>
     <p class="sub" id="checklist-progress"></p>
     <div id="checklist-grid" class="checklist-grid"></div>
+  </div>
+</div>
+
+<div id="custom-master-set-overlay" onclick="if(event.target === this) closeCustomMasterSetModal()" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,14,26,0.85); align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:420px; width:100%; padding:24px; position:relative;">
+    <button class="close-detail" onclick="closeCustomMasterSetModal()" style="position:absolute; top:14px; right:16px;">&times;</button>
+    <h3 style="margin:0 0 4px;">Custom master set</h3>
+    <p class="sub" style="color:var(--text-muted); font-size:13px; margin:0 0 16px;">Track your own collecting goal, e.g. every Pikachu, or every Secret Rare in a set.</p>
+
+    <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Name</label>
+    <input type="text" id="cms-name-input" placeholder="e.g. Every Pikachu" style="width:100%; margin-bottom:10px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+
+    <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Game</label>
+    <select id="cms-game-select" onchange="onCustomMasterSetGameChange()" style="width:100%; margin-bottom:10px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;"></select>
+
+    <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Filter by</label>
+    <select id="cms-filter-type-select" onchange="onCustomMasterSetFilterTypeChange()" style="width:100%; margin-bottom:10px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+      <option value="name">Character / card name contains</option>
+      <option value="card_type">Card type</option>
+      <option value="rarity">Rarity</option>
+    </select>
+
+    <div id="cms-filter-value-container" style="margin-bottom:14px;">
+      <input type="text" id="cms-filter-value-input" placeholder="e.g. Pikachu" oninput="previewCustomMasterSetCount()" style="width:100%; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+    </div>
+
+    <p id="cms-preview-count" style="font-size:12px; color:var(--text-muted); margin:0 0 14px;"></p>
+
+    <button class="add-btn" style="width:100%; padding:9px;" onclick="saveCustomMasterSet()">Create</button>
   </div>
 </div>
 
@@ -1371,6 +1409,7 @@
         loadProfile(session.user);
         loadSetsForPurchaseDropdown();
         loadPurchaseLog(session.user.id);
+        loadCustomMasterSets(session.user.id);
       }
     } else {
       loadedUserId = null;
@@ -1616,6 +1655,227 @@
     await supabaseClient.from('product_purchases').delete().eq('id', id);
     loadPurchaseLog(loadedUserId);
     loadDashboard(loadedUserId);
+  }
+
+  // ---- Custom Master Sets ----
+  // A user-defined tracking goal backed by a live filter against the
+  // existing catalog (by card name, card type, or rarity), rather than a
+  // fixed printed set. Same visual pattern as real Master Sets.
+
+  function filterTypeLabel(type) {
+    return { name: 'Name', card_type: 'Type', rarity: 'Rarity' }[type] || type;
+  }
+
+  async function openCustomMasterSetModal() {
+    document.getElementById('cms-name-input').value = '';
+    document.getElementById('cms-filter-type-select').value = 'name';
+    document.getElementById('cms-preview-count').textContent = '';
+
+    const gameSelect = document.getElementById('cms-game-select');
+    const { data: games } = await supabaseClient.from('games').select('id, name').order('name');
+    gameSelect.innerHTML = (games || []).map((g) => `<option value="${g.id}">${g.name}</option>`).join('');
+
+    await onCustomMasterSetFilterTypeChange();
+    document.getElementById('custom-master-set-overlay').style.display = 'flex';
+  }
+
+  function closeCustomMasterSetModal() {
+    document.getElementById('custom-master-set-overlay').style.display = 'none';
+  }
+
+  function onCustomMasterSetGameChange() {
+    onCustomMasterSetFilterTypeChange();
+  }
+
+  async function onCustomMasterSetFilterTypeChange() {
+    const filterType = document.getElementById('cms-filter-type-select').value;
+    const gameId = document.getElementById('cms-game-select').value;
+    const container = document.getElementById('cms-filter-value-container');
+
+    if (filterType === 'name') {
+      container.innerHTML = `<input type="text" id="cms-filter-value-input" placeholder="e.g. Pikachu" oninput="previewCustomMasterSetCount()" style="width:100%; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">`;
+    } else {
+      const viewName = filterType === 'card_type' ? 'distinct_card_types' : 'distinct_card_rarities';
+      const columnName = filterType === 'card_type' ? 'card_type' : 'rarity';
+      const { data } = await supabaseClient.from(viewName).select(columnName).eq('game_id', gameId);
+      const values = [...new Set((data || []).map((r) => r[columnName]))].sort();
+      container.innerHTML = `<select id="cms-filter-value-input" onchange="previewCustomMasterSetCount()" style="width:100%; background:var(--card); border:1px solid var(--border); color:var(--text); padding:7px 10px; border-radius:6px; font-size:13px;">
+        ${values.map((v) => `<option value="${v}">${v}</option>`).join('')}
+      </select>`;
+    }
+    previewCustomMasterSetCount();
+  }
+
+  function buildCustomSetCountQuery(gameId, filterType, filterValue) {
+    let query = supabaseClient
+      .from('cards')
+      .select('id, sets!inner(game_id)', { count: 'exact', head: true })
+      .eq('sets.game_id', gameId);
+    if (filterType === 'name') query = query.ilike('name', `%${filterValue}%`);
+    else if (filterType === 'card_type') query = query.eq('card_type', filterValue);
+    else if (filterType === 'rarity') query = query.eq('rarity', filterValue);
+    return query;
+  }
+
+  async function fetchCustomSetMatches(gameId, filterType, filterValue) {
+    let query = supabaseClient
+      .from('cards')
+      .select('id, name, card_number, image_url, rarity, sets!inner(game_id)')
+      .eq('sets.game_id', gameId)
+      .order('card_number');
+    if (filterType === 'name') query = query.ilike('name', `%${filterValue}%`);
+    else if (filterType === 'card_type') query = query.eq('card_type', filterValue);
+    else if (filterType === 'rarity') query = query.eq('rarity', filterValue);
+    const { data } = await query;
+    return data || [];
+  }
+
+  async function previewCustomMasterSetCount() {
+    const gameId = document.getElementById('cms-game-select').value;
+    const filterType = document.getElementById('cms-filter-type-select').value;
+    const filterValue = document.getElementById('cms-filter-value-input')?.value?.trim();
+    const previewEl = document.getElementById('cms-preview-count');
+    if (!gameId || !filterValue) { previewEl.textContent = ''; return; }
+
+    const { count } = await buildCustomSetCountQuery(gameId, filterType, filterValue);
+    previewEl.textContent = `${count || 0} card${count === 1 ? '' : 's'} match this filter right now.`;
+  }
+
+  async function saveCustomMasterSet() {
+    const name = document.getElementById('cms-name-input').value.trim();
+    const gameId = document.getElementById('cms-game-select').value;
+    const filterType = document.getElementById('cms-filter-type-select').value;
+    const filterValue = document.getElementById('cms-filter-value-input')?.value?.trim();
+
+    if (!name || !gameId || !filterValue) { alert('Fill in a name, game, and filter value.'); return; }
+
+    const { error } = await supabaseClient
+      .from('custom_master_sets')
+      .insert({ user_id: loadedUserId, name, game_id: gameId, filter_type: filterType, filter_value: filterValue });
+
+    if (error) { console.error('Save custom master set error:', error); alert('Could not save, see console.'); return; }
+
+    closeCustomMasterSetModal();
+    loadCustomMasterSets(loadedUserId);
+  }
+
+  async function deleteCustomMasterSet(id) {
+    if (!confirm('Delete this custom master set? Your collection is unaffected, this only removes the tracking goal.')) return;
+    await supabaseClient.from('custom_master_sets').delete().eq('id', id);
+    loadCustomMasterSets(loadedUserId);
+  }
+
+  async function loadCustomMasterSets(userId) {
+    const { data: customSets, error } = await supabaseClient
+      .from('custom_master_sets')
+      .select('id, name, game_id, filter_type, filter_value, games(name)')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true, nullsFirst: false });
+
+    const container = document.getElementById('custom-set-grid-container');
+    if (!container) return;
+
+    if (error || !customSets || customSets.length === 0) {
+      container.innerHTML = '<div class="empty">No custom master sets yet. Click "+ Custom" to create one.</div>';
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'set-grid';
+
+    for (const cms of customSets) {
+      const matches = await fetchCustomSetMatches(cms.game_id, cms.filter_type, cms.filter_value);
+      const cardIds = matches.map((m) => m.id);
+      let ownedCount = 0;
+      if (cardIds.length > 0) {
+        const { data: ownedRows } = await supabaseClient
+          .from('user_collection').select('card_id').eq('user_id', userId).in('card_id', cardIds);
+        ownedCount = new Set((ownedRows || []).map((r) => r.card_id)).size;
+      }
+      const total = matches.length;
+      const pct = total > 0 ? Math.round((ownedCount / total) * 100) : 0;
+
+      const card = document.createElement('div');
+      card.className = 'set-card';
+      card.style.position = 'relative';
+      card.innerHTML = `
+        <button style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); deleteCustomMasterSet('${cms.id}')" title="Delete"><i class="ti ti-x" aria-hidden="true"></i></button>
+        <p class="name">${cms.name}</p>
+        <p class="game">${cms.games?.name || ''} · ${filterTypeLabel(cms.filter_type)}: ${cms.filter_value}</p>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <p class="sub" style="margin-top:6px;">${ownedCount}/${total} cards · ${pct}%</p>
+      `;
+      card.addEventListener('click', () => openCustomSetChecklist(cms.id, cms.name, cms.game_id, cms.filter_type, cms.filter_value));
+      grid.appendChild(card);
+    }
+
+    container.innerHTML = '';
+    container.appendChild(grid);
+  }
+
+  let currentCustomChecklist = null;
+
+  async function openCustomSetChecklist(customSetId, name, gameId, filterType, filterValue) {
+    currentCustomChecklist = { customSetId, name, gameId, filterType, filterValue };
+    document.getElementById('checklist-title').textContent = name;
+    document.getElementById('checklist-progress').textContent = 'Loading...';
+    document.getElementById('checklist-grid').innerHTML = '';
+    document.getElementById('checklist-overlay').style.display = 'flex';
+
+    const cards = await fetchCustomSetMatches(gameId, filterType, filterValue);
+    const cardIds = cards.map((c) => c.id);
+    const { data: owned } = await supabaseClient
+      .from('user_collection')
+      .select('card_id, variant')
+      .eq('user_id', loadedUserId)
+      .in('card_id', cardIds.length ? cardIds : ['00000000-0000-0000-0000-000000000000']);
+
+    const ownedByCard = new Map();
+    for (const o of owned || []) {
+      if (!ownedByCard.has(o.card_id)) ownedByCard.set(o.card_id, o.variant || 'Normal');
+    }
+
+    let ownedTiles = 0;
+    const grid = document.getElementById('checklist-grid');
+    grid.innerHTML = '';
+
+    for (const card of cards) {
+      const isOwned = ownedByCard.has(card.id);
+      if (isOwned) ownedTiles++;
+      const tile = document.createElement('div');
+      tile.className = 'checklist-tile ' + (isOwned ? 'owned' : 'unowned');
+      tile.innerHTML = `
+        ${card.image_url
+          ? `<img src="${card.image_url}" alt="" loading="lazy" title="${card.name}" ${isOwned ? '' : `onclick="quickAddFromCustomChecklist('${card.id}')"`}>`
+          : `<div class="thumb-placeholder"></div>`}
+        <p class="num">#${card.card_number || '?'}</p>
+      `;
+      grid.appendChild(tile);
+    }
+
+    document.getElementById('checklist-progress').textContent = `${ownedTiles}/${cards.length} owned`;
+  }
+
+  async function quickAddFromCustomChecklist(cardId) {
+    const { data: existing } = await supabaseClient
+      .from('user_collection')
+      .select('id, quantity')
+      .eq('user_id', loadedUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .eq('variant', 'Normal')
+      .eq('language', 'English')
+      .maybeSingle();
+
+    if (existing) {
+      await supabaseClient.from('user_collection').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+    } else {
+      await supabaseClient.from('user_collection').insert({ user_id: loadedUserId, card_id: cardId, quantity: 1, variant: 'Normal' });
+    }
+
+    const c = currentCustomChecklist;
+    openCustomSetChecklist(c.customSetId, c.name, c.gameId, c.filterType, c.filterValue);
+    loadCustomMasterSets(loadedUserId);
   }
 
   async function exportPurchasesToExcel() {
