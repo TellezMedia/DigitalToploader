@@ -446,7 +446,24 @@ async function updateExchangeRates() {
   }
 }
 
+async function checkForPalworldOnTcgcsv() {
+  try {
+    const res = await fetch('https://tcgcsv.com/tcgplayer/categories');
+    if (!res.ok) return;
+    const json = await res.json();
+    const categories = json.results || [];
+    const match = categories.find((c) => /palworld/i.test(c.name || ''));
+    if (match) {
+      console.log(`\n*** HEADS UP: TCGCSV now lists a "${match.name}" category (id ${match.categoryId}). ***`);
+      console.log('*** Palworld pricing may now be available for free via TCGCSV. Update GAMES in import.js. ***\n');
+    }
+  } catch (err) {
+    console.log(`  (Palworld/TCGCSV check skipped: ${err.message})`);
+  }
+}
+
 async function main() {
+  await checkForPalworldOnTcgcsv();
   await updateExchangeRates();
   for (const game of GAMES) {
     if (game.source === 'palworldtcg') {
