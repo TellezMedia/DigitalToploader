@@ -48,6 +48,18 @@
     font-size: 15px;
   }
   .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+  .currency-select {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    height: 32px;
+    padding: 0 6px;
+    margin-right: 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .currency-select:hover { color: var(--text); border-color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -496,6 +508,16 @@
     </div>
     <div>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin-right: 12px;"></span>
+      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
+        <option value="USD">🇺🇸 USD</option>
+        <option value="EUR">🇪🇺 EUR</option>
+        <option value="GBP">🇬🇧 GBP</option>
+        <option value="CAD">🇨🇦 CAD</option>
+        <option value="AUD">🇦🇺 AUD</option>
+        <option value="JPY">🇯🇵 JPY</option>
+        <option value="MXN">🇲🇽 MXN</option>
+        <option value="BRL">🇧🇷 BRL</option>
+      </select>
       <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <button onclick="signOut()">Sign out</button>
     </div>
@@ -563,6 +585,42 @@
     syncThemeIcon();
   }
   syncThemeIcon();
+
+  let exchangeRates = { USD: 1 };
+  let selectedCurrency = 'USD';
+  const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£', CAD: 'CA$', AUD: 'A$', JPY: '¥', MXN: 'MX$', BRL: 'R$' };
+
+  async function loadExchangeRates() {
+    try {
+      const { data } = await supabaseClient.from('exchange_rates').select('currency_code, rate');
+      if (data) {
+        exchangeRates = {};
+        for (const r of data) exchangeRates[r.currency_code] = Number(r.rate);
+      }
+    } catch (e) { /* fall back to USD-only if this fails */ }
+
+    try { selectedCurrency = localStorage.getItem('dtl-currency') || 'USD'; } catch (e) {}
+    const sel = document.getElementById('currency-select');
+    if (sel) sel.value = selectedCurrency;
+  }
+
+  function setCurrency(code) {
+    selectedCurrency = code;
+    try { localStorage.setItem('dtl-currency', code); } catch (e) {}
+    loadCollection();
+    if (document.getElementById('search-results')?.children.length) searchCards();
+  }
+
+  function formatPrice(usdValue) {
+    const n = Number(usdValue) || 0;
+    const rate = exchangeRates[selectedCurrency] || 1;
+    const converted = n * rate;
+    const symbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
+    const decimals = selectedCurrency === 'JPY' ? 0 : 2;
+    return `${symbol}${converted.toFixed(decimals)}`;
+  }
+
+  loadExchangeRates();
 
   let currentUserId = null;
 
@@ -666,7 +724,7 @@
           <div class="variant-row">
             <p class="vname">${v.variant}</p>
             <div class="vbar-track"><div class="vbar-fill" style="width:${maxPrice > 0 ? (Number(v.market_price) / maxPrice * 100) : 0}%"></div></div>
-            <p class="vprices">Low: $${Number(v.low_price || 0).toFixed(2)} · Mid: $${Number(v.mid_price || v.market_price || 0).toFixed(2)} · Market: $${Number(v.market_price || 0).toFixed(2)}</p>
+            <p class="vprices">Low: ${formatPrice(v.low_price || 0)} · Mid: ${formatPrice(v.mid_price || v.market_price || 0)} · Market: ${formatPrice(v.market_price || 0)}</p>
           </div>
         `).join('')
       : '<p class="empty" style="padding:8px 0;">No pricing data yet.</p>';
@@ -707,7 +765,7 @@
         <div class="detail-price-row">
           <div>
             <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
-            <p class="amount">${primary ? '$' + Number(primary.market_price).toFixed(2) : '—'}</p>
+            <p class="amount">${primary ? formatPrice(primary.market_price) : '—'}</p>
           </div>
           <div style="text-align:right;">
             ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
@@ -892,7 +950,7 @@
       const variants = card.latest_prices || [];
       const variantSelectHtml = variants.length > 1
         ? `<select class="variant-select" id="variant-${card.id}">
-             ${variants.map((v) => `<option value="${v.variant}">${v.variant} - $${Number(v.market_price).toFixed(2)}</option>`).join('')}
+             ${variants.map((v) => `<option value="${v.variant}">${v.variant} - ${formatPrice(v.market_price)}</option>`).join('')}
            </select>`
         : '';
       row.innerHTML = `
@@ -1255,7 +1313,7 @@
               if (Number(trend.latest_price) > Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-up trend-up" aria-hidden="true"></i>';
               else if (Number(trend.latest_price) < Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-down trend-down" aria-hidden="true"></i>';
             }
-            priceHtml = `<p class="price">$${Number(trend.latest_price).toFixed(2)}${arrow}</p>`;
+            priceHtml = `<p class="price">${formatPrice(trend.latest_price)}${arrow}</p>`;
           }
           const variantLabel = rowVariant !== 'Normal' ? `<p class="meta" style="font-size:10px; margin:0 0 2px;">${rowVariant}</p>` : '';
           const langBadge = row.language && row.language !== 'English' ? `<span class="lang-badge">${row.language}</span>` : '';

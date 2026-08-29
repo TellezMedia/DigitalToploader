@@ -1,3 +1,4 @@
+-- ALREADY APPLIED to production Supabase — kept for historical reference only, do not re-run.
 # Release Notes
 
 ## v0.5 (2026-07-21)

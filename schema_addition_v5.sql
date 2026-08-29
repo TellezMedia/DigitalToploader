@@ -1,3 +1,4 @@
+-- ALREADY APPLIED to production Supabase — kept for historical reference only, do not re-run.
 -- Run this in Supabase SQL Editor
 -- Adds a column to remember the user's custom drag-and-drop order for their
 -- Set Completion widgets. Existing rows will have sort_order = null, which

@@ -316,7 +316,33 @@ async function importGame(game) {
   }
 }
 
+const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'MXN', 'BRL'];
+
+async function updateExchangeRates() {
+  console.log('\n=== Exchange Rates ===');
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const json = await res.json();
+    if (json.result !== 'success' || !json.rates) {
+      console.log('  Exchange rate fetch failed, keeping previous rates.');
+      return;
+    }
+    const rows = SUPPORTED_CURRENCIES.map((code) => ({
+      currency_code: code,
+      rate: code === 'USD' ? 1 : json.rates[code] || null,
+      updated_at: new Date().toISOString(),
+    })).filter((r) => r.rate != null);
+
+    const { error } = await supabase.from('exchange_rates').upsert(rows, { onConflict: 'currency_code' });
+    if (error) console.log(`  Exchange rate upsert failed: ${error.message}`);
+    else console.log(`  Updated ${rows.length} currency rates.`);
+  } catch (err) {
+    console.log(`  Exchange rate fetch error: ${err.message}`);
+  }
+}
+
 async function main() {
+  await updateExchangeRates();
   for (const game of GAMES) {
     await importGame(game);
   }

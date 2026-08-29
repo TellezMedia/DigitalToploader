@@ -1,3 +1,4 @@
+-- ALREADY APPLIED to production Supabase — kept for historical reference only, do not re-run.
 -- Run this in Supabase SQL Editor before running import.js
 -- Adds the unique constraints the import script relies on for upserts
 

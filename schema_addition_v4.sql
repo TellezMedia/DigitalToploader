@@ -1,3 +1,4 @@
+-- ALREADY APPLIED to production Supabase — kept for historical reference only, do not re-run.
 -- Run this in Supabase SQL Editor
 -- Adds a table to store the basic profile info shown on the Dashboard's
 -- right-hand panel (display name, avatar, age, location, gender, favorite set).

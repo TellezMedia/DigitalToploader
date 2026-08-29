@@ -1,3 +1,4 @@
+-- ALREADY APPLIED to production Supabase — kept for historical reference only, do not re-run.
 -- Run this in Supabase SQL Editor
 -- Adds a view comparing each card's latest price snapshot to the one before it,
 -- used to show the up/down trend arrow on the Collection page.

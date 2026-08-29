@@ -47,6 +47,18 @@
     font-size: 15px;
   }
   .theme-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+  .currency-select {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    height: 32px;
+    padding: 0 6px;
+    margin-right: 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .currency-select:hover { color: var(--text); border-color: var(--accent); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -629,6 +641,16 @@
     </div>
     <div>
       <span id="user-email" style="color: var(--text-muted); font-size: 13px; margin: 0 12px;"></span>
+      <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
+        <option value="USD">🇺🇸 USD</option>
+        <option value="EUR">🇪🇺 EUR</option>
+        <option value="GBP">🇬🇧 GBP</option>
+        <option value="CAD">🇨🇦 CAD</option>
+        <option value="AUD">🇦🇺 AUD</option>
+        <option value="JPY">🇯🇵 JPY</option>
+        <option value="MXN">🇲🇽 MXN</option>
+        <option value="BRL">🇧🇷 BRL</option>
+      </select>
       <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <button onclick="signOut()">Sign out</button>
     </div>
@@ -755,6 +777,42 @@
   }
   syncThemeIcon();
 
+  let exchangeRates = { USD: 1 };
+  let selectedCurrency = 'USD';
+  const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£', CAD: 'CA$', AUD: 'A$', JPY: '¥', MXN: 'MX$', BRL: 'R$' };
+
+  async function loadExchangeRates() {
+    try {
+      const { data } = await supabaseClient.from('exchange_rates').select('currency_code, rate');
+      if (data) {
+        exchangeRates = {};
+        for (const r of data) exchangeRates[r.currency_code] = Number(r.rate);
+      }
+    } catch (e) { /* fall back to USD-only if this fails */ }
+
+    try { selectedCurrency = localStorage.getItem('dtl-currency') || 'USD'; } catch (e) {}
+    const sel = document.getElementById('currency-select');
+    if (sel) sel.value = selectedCurrency;
+  }
+
+  function setCurrency(code) {
+    selectedCurrency = code;
+    try { localStorage.setItem('dtl-currency', code); } catch (e) {}
+    // Re-render whatever's currently on screen with the new currency
+    if (typeof loadedUserId !== 'undefined' && loadedUserId) loadDashboard(loadedUserId);
+  }
+
+  function formatPrice(usdValue) {
+    const n = Number(usdValue) || 0;
+    const rate = exchangeRates[selectedCurrency] || 1;
+    const converted = n * rate;
+    const symbol = CURRENCY_SYMBOLS[selectedCurrency] || '$';
+    const decimals = selectedCurrency === 'JPY' ? 0 : 2;
+    return `${symbol}${converted.toFixed(decimals)}`;
+  }
+
+  loadExchangeRates();
+
   async function signInWithGoogle() {
     const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
     if (error) console.error('Sign-in error:', error);
@@ -855,7 +913,7 @@
           <div class="variant-row">
             <p class="vname">${v.variant}</p>
             <div class="vbar-track"><div class="vbar-fill" style="width:${maxPrice > 0 ? (Number(v.market_price) / maxPrice * 100) : 0}%"></div></div>
-            <p class="vprices">Low: $${Number(v.low_price || 0).toFixed(2)} · Mid: $${Number(v.mid_price || v.market_price || 0).toFixed(2)} · Market: $${Number(v.market_price || 0).toFixed(2)}</p>
+            <p class="vprices">Low: ${formatPrice(v.low_price || 0)} · Mid: ${formatPrice(v.mid_price || v.market_price || 0)} · Market: ${formatPrice(v.market_price || 0)}</p>
           </div>
         `).join('')
       : '<p class="empty" style="padding:8px 0;">No pricing data yet.</p>';
@@ -895,7 +953,7 @@
         <div class="detail-price-row">
           <div>
             <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
-            <p class="amount">${primary ? '$' + Number(primary.market_price).toFixed(2) : '—'}</p>
+            <p class="amount">${primary ? formatPrice(primary.market_price) : '—'}</p>
           </div>
           <div style="text-align:right;">
             ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
@@ -1145,7 +1203,7 @@
           : `<div class="thumb-placeholder"></div>`}
         <p class="name">${card?.name || ''}</p>
         <p class="meta">${card?.sets?.name || ''}${card?.rarity ? ' · ' + card.rarity : ''}</p>
-        ${price ? `<p class="price">$${Number(price).toFixed(2)}</p>` : ''}
+        ${price ? `<p class="price">${formatPrice(price)}</p>` : ''}
       `;
       grid.appendChild(el);
     }
@@ -1334,7 +1392,7 @@
     const valueY = yScale(currentPortfolioValue);
 
     const gainColor = gain >= 0 ? '#4caf50' : '#e05a5a';
-    const gainLabel = gain >= 0 ? `+$${gain.toFixed(2)}` : `-$${Math.abs(gain).toFixed(2)}`;
+    const gainLabel = gain >= 0 ? `+${formatPrice(gain)}` : `-${formatPrice(Math.abs(gain))}`;
 
     container.innerHTML = `
       <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
@@ -1342,8 +1400,8 @@
         <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2" />
       </svg>
       <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:2px;">
-        <span style="color:var(--text-muted);">Spent: <strong style="color:var(--text);">$${totalSpent.toFixed(2)}</strong></span>
-        <span style="color:var(--text-muted);">Value: <strong style="color:var(--gold);">$${currentPortfolioValue.toFixed(2)}</strong></span>
+        <span style="color:var(--text-muted);">Spent: <strong style="color:var(--text);">${formatPrice(totalSpent)}</strong></span>
+        <span style="color:var(--text-muted);">Value: <strong style="color:var(--gold);">${formatPrice(currentPortfolioValue)}</strong></span>
       </div>
       <div style="text-align:center; margin-top:6px; font-size:13px; font-weight:600; color:${gainColor};">${gainLabel}</div>
     `;
@@ -1404,7 +1462,7 @@
 
     list.innerHTML = data.map((row) => `
       <div class="purchase-log-item">
-        <span>${row.sets?.name || 'Unknown set'} · ${row.product_type} · $${Number(row.price_paid).toFixed(2)}</span>
+        <span>${row.sets?.name || 'Unknown set'} · ${row.product_type} · ${formatPrice(row.price_paid)}</span>
         <button class="remove-x" onclick="removeProductPurchase('${row.id}')" title="Remove"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
     `).join('');
@@ -1445,7 +1503,7 @@
       }
     }
 
-    document.getElementById('stat-value').textContent = '$' + portfolioValue.toFixed(2);
+    document.getElementById('stat-value').textContent = formatPrice(portfolioValue);
     loadSpendValueChart(userId, portfolioValue);
     document.getElementById('stat-unique').textContent = uniqueCards;
     document.getElementById('stat-total').textContent = totalCards;
@@ -1457,7 +1515,7 @@
       document.getElementById('top-card-img').src = topRow.cards.image_url || '';
       document.getElementById('top-card-name').textContent = topRow.cards.name + (topRow.cards.card_number ? ' #' + topRow.cards.card_number : '');
       document.getElementById('top-card-meta').textContent = topRow.cards.sets?.name || '';
-      document.getElementById('top-card-price').textContent = '$' + topPrice.toFixed(2);
+      document.getElementById('top-card-price').textContent = formatPrice(topPrice);
       topCardSection.style.display = 'flex';
     } else {
       topCardSection.style.display = 'none';
