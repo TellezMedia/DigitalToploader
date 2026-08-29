@@ -266,6 +266,7 @@
     border-radius: 8px;
     padding: 8px;
     text-align: center;
+    position: relative;
   }
   .gallery-card .thumb {
     width: 100%;
@@ -594,9 +595,26 @@
         <i class="ti ti-file-import" aria-hidden="true"></i> Import CSV
       </a>
       <input type="file" id="csv-import-input" accept=".csv" style="display:none;" onchange="handleCsvFileChosen(event)">
+      <a href="#" id="select-mode-toggle" onclick="toggleSelectMode(); return false;" style="color: var(--text-muted); font-size: 12px; text-decoration: none;">
+        <i class="ti ti-checkbox" aria-hidden="true"></i> Select
+      </a>
+      <a href="#" onclick="openClearCollectionModal(); return false;" style="color: var(--danger); font-size: 12px; text-decoration: none;">
+        <i class="ti ti-trash" aria-hidden="true"></i> Clear Collection
+      </a>
     </div>
   </div>
+  <div id="select-toolbar" style="display:none; align-items:center; justify-content:space-between; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
+    <div>
+      <label style="cursor:pointer; margin-right:14px;"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)"> Select all</label>
+      <span id="select-count-label" style="color: var(--text-muted);">0 selected</span>
+    </div>
+    <button style="background: transparent; border: 1px solid var(--danger); color: var(--danger); padding:5px 10px; border-radius:6px; font-size:12px; cursor:pointer;" onclick="deleteSelectedCards()">Delete selected</button>
+  </div>
   <div id="import-summary"></div>
+  <div id="undo-import-row" style="display:none; align-items:center; justify-content:space-between; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
+    <span id="undo-import-label" style="color: var(--text-muted);"></span>
+    <button class="action-btn secondary" style="font-size:12px; padding:5px 10px; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer;" onclick="undoLastImport()">Undo</button>
+  </div>
   <div id="collection-groups"></div>
 </div>
 
@@ -629,6 +647,16 @@
       </label>
     </div>
     <button class="add-btn" onclick="document.getElementById('csv-import-input').click();">Choose file…</button>
+  </div>
+</div>
+
+<div id="clear-collection-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,14,26,0.85); align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:var(--bg); border:1px solid var(--danger); border-radius:12px; max-width:420px; width:100%; padding:24px; position:relative;">
+    <button class="close-detail" onclick="closeClearCollectionModal()" style="position:absolute; top:14px; right:16px;">&times;</button>
+    <h3 style="margin:0 0 4px; color: var(--danger);">Clear entire collection</h3>
+    <p class="sub" style="color:var(--text-muted); font-size:13px; margin:0 0 14px;">This permanently deletes every card in your collection (<span id="clear-collection-count">0</span> cards). This cannot be undone. Type <strong>DELETE</strong> below to confirm.</p>
+    <input type="text" id="clear-collection-confirm-input" placeholder="Type DELETE to confirm" style="width:100%; background: var(--card); border: 1px solid var(--border); color: var(--text); padding:8px 10px; border-radius:6px; font-size:13px; margin-bottom:14px;">
+    <button style="background: var(--danger); color:#fff; border:none; padding:9px 18px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;" onclick="clearEntireCollection()">Delete everything</button>
   </div>
 </div>
 
@@ -958,6 +986,7 @@
       }
       loadGames();
       loadCollection();
+      loadLastImportBatch();
     } else {
       document.getElementById('signed-out-view').style.display = 'flex';
       document.getElementById('signed-in-view').style.display = 'none';
@@ -1105,6 +1134,70 @@
     loadCollection();
   }
 
+  // ---- Select mode / bulk delete ----
+  let selectModeActive = false;
+
+  function toggleSelectMode() {
+    selectModeActive = !selectModeActive;
+    document.getElementById('select-toolbar').style.display = selectModeActive ? 'flex' : 'none';
+    document.getElementById('select-mode-toggle').innerHTML = selectModeActive
+      ? '<i class="ti ti-x" aria-hidden="true"></i> Cancel'
+      : '<i class="ti ti-checkbox" aria-hidden="true"></i> Select';
+    if (!selectModeActive) {
+      document.getElementById('select-all-checkbox').checked = false;
+    }
+    renderCollectionGroups(); // re-render tiles so checkboxes show/hide
+  }
+
+  function onCardCheckboxChange() {
+    const total = document.querySelectorAll('.card-select-checkbox').length;
+    const checked = document.querySelectorAll('.card-select-checkbox:checked').length;
+    document.getElementById('select-count-label').textContent = `${checked} selected`;
+    document.getElementById('select-all-checkbox').checked = total > 0 && checked === total;
+  }
+
+  function toggleSelectAll(checked) {
+    document.querySelectorAll('.card-select-checkbox').forEach((cb) => { cb.checked = checked; });
+    onCardCheckboxChange();
+  }
+
+  async function deleteSelectedCards() {
+    const checkedBoxes = [...document.querySelectorAll('.card-select-checkbox:checked')];
+    if (checkedBoxes.length === 0) return;
+    if (!confirm(`Delete ${checkedBoxes.length} selected card${checkedBoxes.length === 1 ? '' : 's'} from your collection? This cannot be undone.`)) return;
+
+    const rowIds = checkedBoxes.map((cb) => cb.dataset.rowId);
+    const { error } = await supabaseClient.from('user_collection').delete().in('id', rowIds);
+    if (error) { alert('Delete failed: ' + error.message); return; }
+
+    toggleSelectMode(); // exits select mode and re-renders
+    loadCollection();
+  }
+
+  // ---- Clear entire collection ----
+  function openClearCollectionModal() {
+    const totalCards = collectionRowsRaw?.length || 0;
+    document.getElementById('clear-collection-count').textContent = totalCards;
+    document.getElementById('clear-collection-confirm-input').value = '';
+    document.getElementById('clear-collection-overlay').style.display = 'flex';
+  }
+
+  function closeClearCollectionModal() {
+    document.getElementById('clear-collection-overlay').style.display = 'none';
+  }
+
+  async function clearEntireCollection() {
+    const confirmText = document.getElementById('clear-collection-confirm-input').value.trim();
+    if (confirmText !== 'DELETE') {
+      alert('Type DELETE exactly to confirm.');
+      return;
+    }
+    const { error } = await supabaseClient.from('user_collection').delete().eq('user_id', currentUserId);
+    if (error) { alert('Clear failed: ' + error.message); return; }
+    closeClearCollectionModal();
+    loadCollection();
+  }
+
   async function toggleMasterSet(setId, checked) {
     if (checked) {
       const { error } = await supabaseClient
@@ -1232,6 +1325,7 @@
 
     let imported = 0;
     const unmatched = [];
+    const batchItems = []; // { collection_row_id, was_new_row, quantity_added }
     const profile = CSV_SOURCE_PROFILES[source] || CSV_SOURCE_PROFILES.other;
 
     const pick = (row, keys) => {
@@ -1289,10 +1383,30 @@
 
       if (existing) {
         await supabaseClient.from('user_collection').update({ quantity: existing.quantity + qty }).eq('id', existing.id);
+        batchItems.push({ collection_row_id: existing.id, was_new_row: false, quantity_added: qty });
       } else {
-        await supabaseClient.from('user_collection').insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, condition, language });
+        const { data: inserted } = await supabaseClient
+          .from('user_collection')
+          .insert({ user_id: currentUserId, card_id: cardId, quantity: qty, variant, condition, language })
+          .select('id')
+          .single();
+        if (inserted) batchItems.push({ collection_row_id: inserted.id, was_new_row: true, quantity_added: qty });
       }
       imported++;
+    }
+
+    // Record this batch so "Undo last import" can reverse exactly this,
+    // and nothing else (not manual adds made before or after it).
+    if (batchItems.length > 0) {
+      const { data: batch } = await supabaseClient
+        .from('import_batches')
+        .insert({ user_id: currentUserId, source, row_count: batchItems.length })
+        .select('id')
+        .single();
+      if (batch) {
+        const itemRows = batchItems.map((item) => ({ ...item, batch_id: batch.id }));
+        await supabaseClient.from('import_batch_items').insert(itemRows);
+      }
     }
 
     let html = `<p><strong>${imported}</strong> card${imported === 1 ? '' : 's'} imported successfully.</p>`;
@@ -1304,6 +1418,62 @@
     summaryDiv.innerHTML = html;
 
     loadCollection();
+    loadLastImportBatch();
+  }
+
+  // ---- Undo last import ----
+  async function loadLastImportBatch() {
+    const { data: batch } = await supabaseClient
+      .from('import_batches')
+      .select('id, source, row_count, created_at')
+      .eq('user_id', currentUserId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const el = document.getElementById('undo-import-row');
+    if (!el) return;
+    if (!batch) {
+      el.style.display = 'none';
+      return;
+    }
+    const sourceLabel = { template: 'Digital TopLoader template', palworldtcg: 'palworldtcg.gg export', other: 'Other CSV' }[batch.source] || batch.source || 'CSV';
+    const when = new Date(batch.created_at).toLocaleString();
+    document.getElementById('undo-import-label').textContent = `Last import: ${batch.row_count} card${batch.row_count === 1 ? '' : 's'} via ${sourceLabel}, ${when}`;
+    el.style.display = 'flex';
+    el.dataset.batchId = batch.id;
+  }
+
+  async function undoLastImport() {
+    const el = document.getElementById('undo-import-row');
+    const batchId = el?.dataset.batchId;
+    if (!batchId) return;
+    if (!confirm('Undo the last import? This reverses exactly what that import added, nothing else.')) return;
+
+    const { data: items } = await supabaseClient
+      .from('import_batch_items')
+      .select('collection_row_id, was_new_row, quantity_added')
+      .eq('batch_id', batchId);
+
+    for (const item of items || []) {
+      if (item.was_new_row) {
+        await supabaseClient.from('user_collection').delete().eq('id', item.collection_row_id);
+      } else {
+        const { data: row } = await supabaseClient.from('user_collection').select('quantity').eq('id', item.collection_row_id).maybeSingle();
+        if (row) {
+          const newQty = row.quantity - item.quantity_added;
+          if (newQty <= 0) {
+            await supabaseClient.from('user_collection').delete().eq('id', item.collection_row_id);
+          } else {
+            await supabaseClient.from('user_collection').update({ quantity: newQty }).eq('id', item.collection_row_id);
+          }
+        }
+      }
+    }
+
+    await supabaseClient.from('import_batches').delete().eq('id', batchId);
+    loadCollection();
+    loadLastImportBatch();
   }
 
   async function loadCollection() {
@@ -1452,7 +1622,11 @@
 
           const tile = document.createElement('div');
           tile.className = 'gallery-card';
+          tile.dataset.rowId = row.id;
           tile.innerHTML = `
+            <label class="select-checkbox-wrap" style="display:${selectModeActive ? 'block' : 'none'}; position:relative;">
+              <input type="checkbox" class="card-select-checkbox" data-row-id="${row.id}" onchange="onCardCheckboxChange()" style="position:absolute; top:4px; left:4px; z-index:2; width:16px; height:16px;">
+            </label>
             ${card.image_url
               ? `<img class="thumb" src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
               : `<div class="thumb-placeholder"></div>`}
