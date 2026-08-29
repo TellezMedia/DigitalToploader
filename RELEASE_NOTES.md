@@ -4,6 +4,11 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.24 (core app)
+
+**Added:**
+- Themed scrollbars across all four pages (index, collection, binders, profile), using the same CSS variables as the rest of the theme, so they automatically match dark/light mode instead of showing the browser's generic scrollbar.
+
 ## v0.23 (core app)
 
 **Added:**

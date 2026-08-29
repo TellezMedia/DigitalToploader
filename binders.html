@@ -85,6 +85,12 @@
   }
   .user-menu-dropdown a:hover { background: var(--bg); }
   * { box-sizing: border-box; }
+  /* Themed scrollbars, follows dark/light mode automatically via the same CSS vars */
+  * { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: var(--bg); }
+  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--accent); }
   body {
     margin: 0;
     background: var(--bg);
