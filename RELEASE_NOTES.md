@@ -4,6 +4,11 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.27.2 (core app, patch)
+
+**Added:**
+- Ability tags (CONT, AUTO, ACT, TRIGGER, QUICK) in the Card Info section now render as dark rounded pill badges, matching the style printed on the physical card, instead of plain text.
+
 ## v0.27.1 (core app, patch)
 
 **Fixed:**

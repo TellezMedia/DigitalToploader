@@ -500,6 +500,18 @@
   .cip-keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .cip-keyword { font-size: 11px; font-weight: 700; color: #1a1a1a; padding: 3px 8px; border-radius: 4px; }
   .cip-effect { font-size: 12px; color: var(--text); line-height: 1.5; margin: 0 0 6px; }
+  .cip-ability-tag {
+    display: inline-block;
+    background: #1a1a2e;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
   .cip-effect:last-child { margin-bottom: 0; }
   .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
   .badge {
@@ -976,13 +988,23 @@
       .trim();
   }
 
+  function buildEffectTextHtml(text) {
+    const lines = formatPalworldEffectText(text).split('\n').filter(Boolean);
+    return lines.map((line) => {
+      const match = line.match(/^(CONT|AUTO|ACT|TRIGGER|QUICK)\s*(.*)$/);
+      if (match) {
+        return `<p class="cip-effect"><span class="cip-ability-tag">${match[1]}</span> ${match[2]}</p>`;
+      }
+      return `<p class="cip-effect">${line}</p>`;
+    }).join('');
+  }
+
   function buildCardInfoDetails(card) {
     const keywords = card.work_keywords ? card.work_keywords.split(',').map((k) => k.trim()).filter(Boolean) : [];
-    const effectLines = formatPalworldEffectText(card.effect_text).split('\n').filter(Boolean);
     return `
       ${card.subtype ? `<p class="cip-subtype">Type: ${card.subtype}</p>` : ''}
       ${keywords.length ? `<p class="cip-label">Work Suitability</p><div class="cip-keywords">${keywords.map((k) => `<span class="cip-keyword" style="background:${WORK_KEYWORD_COLORS[k] || 'var(--border)'}">${k}</span>`).join('')}</div>` : ''}
-      ${effectLines.length ? effectLines.map((line) => `<p class="cip-effect">${line}</p>`).join('') : ''}
+      ${buildEffectTextHtml(card.effect_text)}
     `;
   }
 
