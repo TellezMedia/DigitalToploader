@@ -419,6 +419,11 @@ async function importPalworldGame(game) {
       rarity: card.rarity || null,
       card_type: card.card_type || null,
       image_url: resolvePalworldImageUrl(card.image_url || card.thumbnail_url),
+      subtype: card.subtype || null,
+      effect_text: card.effect_text || null,
+      work_keywords: Array.isArray(card.work_keywords)
+        ? card.work_keywords.join(',')
+        : (card.work_keywords || null),
       // No TCGCSV product exists for this game; namespace the palworldtcg.gg
       // slug into the same unique column the TCGCSV path uses, so upserts
       // still de-dupe cleanly without a schema change.
