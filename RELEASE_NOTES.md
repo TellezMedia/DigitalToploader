@@ -4,6 +4,21 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.26 (core app)
+
+**Added:**
+- Palworld card detail hover/tap popup: on the card detail modal's enlarged image, hover (desktop) or tap (mobile) to see the Pal subtype, color-coded work suitability badges (matching the in-game colors), and the ability text. Palworld-specific for now, other games would need their own rules-text field imported separately (backlogged).
+- `import.js` now pulls `subtype`, `effect_text`, and `work_keywords` for Palworld cards (palworldtcg.gg's API already returns these, they just weren't being saved).
+
+**Setup required after this release:**
+1. Run `schema_addition_v12.sql` in Supabase SQL Editor (adds `subtype`, `effect_text`, `work_keywords` to `cards`).
+2. Re-run the import to backfill these fields on existing Palworld cards.
+
+## v0.25 (core app)
+
+**Fixed:**
+- A Master Set flagged with zero owned cards had no way to be unflagged, the checkbox to do that only exists in Collection, and Collection only shows a set's group (with that checkbox) if you own at least one card from it. Added a small × button directly on each Set Completion tile on the Dashboard, so any flagged set can be removed regardless of whether you own cards from it.
+
 ## v0.24 (core app)
 
 **Added:**

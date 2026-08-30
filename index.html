@@ -494,6 +494,28 @@
   }
   .detail-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
   .detail-header img { width: 240px; border-radius: 8px; }
+  .card-image-wrap { position: relative; flex-shrink: 0; }
+  .card-image-wrap.has-info { cursor: help; }
+  .card-info-popup {
+    display: none;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    background: rgba(10, 14, 26, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    z-index: 10;
+    max-height: calc(100% - 16px);
+    overflow-y: auto;
+  }
+  .card-image-wrap.has-info:hover .card-info-popup,
+  .card-image-wrap.tapped .card-info-popup { display: block; }
+  .cip-subtype { font-size: 12px; font-weight: 600; color: #fff; margin: 0 0 6px; }
+  .cip-keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .cip-keyword { font-size: 10px; font-weight: 700; color: #1a1a1a; padding: 2px 6px; border-radius: 4px; }
+  .cip-effect { font-size: 11px; color: #fff; line-height: 1.4; margin: 0; }
   .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
   .badge {
     background: var(--card);
@@ -947,6 +969,39 @@
     return `<span class="rarity-badge">${label}</span>`;
   }
 
+  // Palworld-specific: work suitability color coding, matches the in-game colors.
+  const WORK_KEYWORD_COLORS = {
+    'Kindling': '#e8821e',
+    'Watering': '#3a8fd9',
+    'Planting': '#1f6b32',
+    'Electricity': '#e8d21e',
+    'Handiwork': '#e8b895',
+    'Gathering': '#5cc95c',
+    'Lumbering': '#8a5a2e',
+    'Mining': '#8c8c8c',
+    'Medicine Production': '#a8c93a',
+    'Cooling': '#9fd8f0',
+    'Transporting': '#c9a97e',
+    'Farming': '#c9a97e',
+  };
+
+  function buildCardInfoPopup(card) {
+    const hasInfo = card.subtype || card.effect_text || card.work_keywords;
+    if (!hasInfo) return '';
+    const keywords = card.work_keywords ? card.work_keywords.split(',').map((k) => k.trim()).filter(Boolean) : [];
+    return `
+      <div class="card-info-popup">
+        ${card.subtype ? `<p class="cip-subtype">${card.subtype}</p>` : ''}
+        ${keywords.length ? `<div class="cip-keywords">${keywords.map((k) => `<span class="cip-keyword" style="background:${WORK_KEYWORD_COLORS[k] || 'var(--border)'}">${k}</span>`).join('')}</div>` : ''}
+        ${card.effect_text ? `<p class="cip-effect">${card.effect_text}</p>` : ''}
+      </div>
+    `;
+  }
+
+  function toggleCardInfoPopup(el) {
+    el.classList.toggle('tapped');
+  }
+
   function toggleUserMenu() {
     document.getElementById('user-menu-dropdown')?.classList.toggle('open');
   }
@@ -1019,7 +1074,7 @@
   async function openCardDetail(cardId, collectionRowId) {
     const { data: card, error } = await supabaseClient
       .from('cards')
-      .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
+      .select('id, name, card_number, rarity, card_type, image_url, tcgcsv_product_id, subtype, effect_text, work_keywords, sets(name, release_date, games(name)), latest_prices(variant, market_price, low_price, mid_price, high_price)')
       .eq('id', cardId)
       .single();
 
@@ -1066,7 +1121,7 @@
     panel.innerHTML = `
       <button class="close-detail" onclick="closeCardDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
       <div class="detail-header">
-        ${card.image_url ? `<div style="position:relative; flex-shrink:0;"><img src="${card.image_url}" alt="">${rarityBadge(card.rarity)}</div>` : ''}
+        ${card.image_url ? `<div class="card-image-wrap${(card.subtype || card.effect_text || card.work_keywords) ? ' has-info' : ''}" onclick="toggleCardInfoPopup(this)"><img src="${card.image_url}" alt="">${rarityBadge(card.rarity)}${buildCardInfoPopup(card)}</div>` : ''}
         <div>
           <div class="badges">
             <span class="badge">${card.sets?.games?.name || ''}</span>
