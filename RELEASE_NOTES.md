@@ -4,6 +4,21 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.27.1 (core app, patch)
+
+**Fixed:**
+- Work suitability colors weren't applying, the color map used the video game's 12 terminology names, but the TCG's own cards use a different, simplified 8-term vocabulary (confirmed via live query: Collecting, Cooling, Crafting, Electricity, Farming, Harvesting, Kindling, Transporting). Rebuilt the map against the real values, direct matches (Kindling, Electricity, Cooling, Transporting, Farming) use the colors as given, the three with no video-game equivalent (Collecting, Crafting, Harvesting) are a best-guess assignment pending confirmation.
+
+## v0.27 (core app)
+
+**Changed:**
+- Card detail modal restructured: the standalone "Market Price" section is gone, its price and TCGPlayer/PriceCharting links now live at the top of "Pricing Breakdown" instead of being duplicated in two places. The Palworld hover/tap info popup from v0.26 is now a normal always-visible "Card info" section in that spot instead, no hover/tap needed, works the same on desktop and mobile.
+
+## v0.26.1 (core app, patch)
+
+**Fixed:**
+- Palworld card info popup was an unlabeled wall of text (e.g. "Lucky" with no context, multiple CONT/AUTO ability clauses run together with no separation). Added "Type:" and "Work Suitability" labels, and the ability text now breaks onto its own line at each recognized ability tag (CONT/AUTO/ACT/TRIGGER/QUICK) instead of one run-on paragraph.
+
 ## v0.26 (core app)
 
 **Added:**

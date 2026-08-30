@@ -471,27 +471,12 @@
   .detail-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
   .detail-header img { width: 240px; border-radius: 8px; }
   .card-image-wrap { position: relative; flex-shrink: 0; }
-  .card-image-wrap.has-info { cursor: help; }
-  .card-info-popup {
-    display: none;
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    background: rgba(10, 14, 26, 0.96);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
-    z-index: 10;
-    max-height: calc(100% - 16px);
-    overflow-y: auto;
-  }
-  .card-image-wrap.has-info:hover .card-info-popup,
-  .card-image-wrap.tapped .card-info-popup { display: block; }
-  .cip-subtype { font-size: 12px; font-weight: 600; color: #fff; margin: 0 0 6px; }
-  .cip-keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-  .cip-keyword { font-size: 10px; font-weight: 700; color: #1a1a1a; padding: 2px 6px; border-radius: 4px; }
-  .cip-effect { font-size: 11px; color: #fff; line-height: 1.4; margin: 0; }
+  .cip-subtype { font-size: 13px; font-weight: 600; color: var(--text); margin: 0 0 8px; }
+  .cip-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px; }
+  .cip-keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .cip-keyword { font-size: 11px; font-weight: 700; color: #1a1a1a; padding: 3px 8px; border-radius: 4px; }
+  .cip-effect { font-size: 12px; color: var(--text); line-height: 1.5; margin: 0 0 6px; }
+  .cip-effect:last-child { margin-bottom: 0; }
   .detail-header .badges { display: flex; gap: 6px; margin-bottom: 6px; }
   .badge {
     background: var(--card);
@@ -814,37 +799,39 @@
     return `<span class="rarity-badge">${label}</span>`;
   }
 
-  // Palworld-specific: work suitability color coding, matches the in-game colors.
+  // Palworld TCG uses its own simplified 8-keyword vocabulary (confirmed via
+  // live data), not the video game's 12 work suitabilities. Direct matches
+  // use Tony's given colors; Collecting/Crafting/Harvesting have no direct
+  // video-game equivalent, so these are a best-guess color assignment.
   const WORK_KEYWORD_COLORS = {
     'Kindling': '#e8821e',
-    'Watering': '#3a8fd9',
-    'Planting': '#1f6b32',
     'Electricity': '#e8d21e',
-    'Handiwork': '#e8b895',
-    'Gathering': '#5cc95c',
-    'Lumbering': '#8a5a2e',
-    'Mining': '#8c8c8c',
-    'Medicine Production': '#a8c93a',
     'Cooling': '#9fd8f0',
     'Transporting': '#c9a97e',
     'Farming': '#c9a97e',
+    'Crafting': '#e8b895',
+    'Collecting': '#5cc95c',
+    'Harvesting': '#1f6b32',
   };
 
-  function buildCardInfoPopup(card) {
-    const hasInfo = card.subtype || card.effect_text || card.work_keywords;
-    if (!hasInfo) return '';
-    const keywords = card.work_keywords ? card.work_keywords.split(',').map((k) => k.trim()).filter(Boolean) : [];
-    return `
-      <div class="card-info-popup">
-        ${card.subtype ? `<p class="cip-subtype">${card.subtype}</p>` : ''}
-        ${keywords.length ? `<div class="cip-keywords">${keywords.map((k) => `<span class="cip-keyword" style="background:${WORK_KEYWORD_COLORS[k] || 'var(--border)'}">${k}</span>`).join('')}</div>` : ''}
-        ${card.effect_text ? `<p class="cip-effect">${card.effect_text}</p>` : ''}
-      </div>
-    `;
+  function formatPalworldEffectText(text) {
+    if (!text) return '';
+    // Palworld ability text runs multiple clauses together with no separation
+    // (e.g. "CONT ... CONT ... AUTO ..."). Break onto its own line at each
+    // recognized ability-type tag so it actually reads as separate abilities.
+    return text
+      .replace(/\s*(CONT|AUTO|ACT|TRIGGER|QUICK)\b/g, '\n$1')
+      .trim();
   }
 
-  function toggleCardInfoPopup(el) {
-    el.classList.toggle('tapped');
+  function buildCardInfoDetails(card) {
+    const keywords = card.work_keywords ? card.work_keywords.split(',').map((k) => k.trim()).filter(Boolean) : [];
+    const effectLines = formatPalworldEffectText(card.effect_text).split('\n').filter(Boolean);
+    return `
+      ${card.subtype ? `<p class="cip-subtype">Type: ${card.subtype}</p>` : ''}
+      ${keywords.length ? `<p class="cip-label">Work Suitability</p><div class="cip-keywords">${keywords.map((k) => `<span class="cip-keyword" style="background:${WORK_KEYWORD_COLORS[k] || 'var(--border)'}">${k}</span>`).join('')}</div>` : ''}
+      ${effectLines.length ? effectLines.map((line) => `<p class="cip-effect">${line}</p>`).join('') : ''}
+    `;
   }
 
   function toggleUserMenu() {
@@ -968,7 +955,7 @@
     panel.innerHTML = `
       <button class="close-detail" onclick="closeCardDetail()"><i class="ti ti-x" aria-hidden="true"></i></button>
       <div class="detail-header">
-        ${card.image_url ? `<div class="card-image-wrap${(card.subtype || card.effect_text || card.work_keywords) ? ' has-info' : ''}" onclick="toggleCardInfoPopup(this)"><img src="${card.image_url}" alt="">${rarityBadge(card.rarity)}${buildCardInfoPopup(card)}</div>` : ''}
+        ${card.image_url ? `<div class="card-image-wrap"><img src="${card.image_url}" alt="">${rarityBadge(card.rarity)}</div>` : ''}
         <div>
           <div class="badges">
             <span class="badge">${card.sets?.games?.name || ''}</span>
@@ -1006,20 +993,12 @@
         </div>
       </div>
 
+      ${(card.subtype || card.effect_text || card.work_keywords) ? `
       <div class="detail-section">
-        <div class="detail-price-row">
-          <div>
-            <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
-            <p class="amount">${primary ? formatPrice(primary.market_price) : '—'}</p>
-          </div>
-          <div style="text-align:right;">
-            ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
-          </div>
-        </div>
-        <div class="detail-links">
-          <a href="${priceChartingUrl}" target="_blank" rel="noopener">PriceCharting <i class="ti ti-external-link" aria-hidden="true"></i></a>
-        </div>
+        <p class="label">Card info</p>
+        ${buildCardInfoDetails(card)}
       </div>
+      ` : ''}
 
       <div class="detail-section">
         <p class="label">Card details</p>
@@ -1033,6 +1012,18 @@
 
       <div class="detail-section">
         <p class="label">Pricing breakdown</p>
+        <div class="detail-price-row" style="margin-bottom:12px;">
+          <div>
+            <p class="label" style="margin-bottom:2px;">Market price${primary ? ' (' + primary.variant + ')' : ''}</p>
+            <p class="amount">${primary ? formatPrice(primary.market_price) : '—'}</p>
+          </div>
+          <div style="text-align:right;">
+            ${tcgplayerUrl ? `<a href="${tcgplayerUrl}" target="_blank" rel="noopener">View on TCGPlayer <i class="ti ti-external-link" aria-hidden="true"></i></a>` : ''}
+          </div>
+        </div>
+        <div class="detail-links" style="margin-bottom:12px;">
+          <a href="${priceChartingUrl}" target="_blank" rel="noopener">PriceCharting <i class="ti ti-external-link" aria-hidden="true"></i></a>
+        </div>
         ${variantsHtml}
       </div>
 
