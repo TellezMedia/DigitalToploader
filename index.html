@@ -404,6 +404,24 @@
     pointer-events: none;
     border: 1px solid rgba(255,255,255,0.15);
   }
+  .recent-card .remove-x {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 3;
+    background: rgba(10, 14, 26, 0.75);
+    border: none;
+    color: #fff;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .recent-card .remove-x:hover { background: var(--danger); }
   .recent-card img, .recent-card .thumb-placeholder {
     width: 100%;
     aspect-ratio: 5 / 7;
@@ -468,7 +486,8 @@
   }
   .checklist-tile.unowned img { filter: grayscale(100%); opacity: 0.55; cursor: pointer; }
   .checklist-tile.unowned img:hover { opacity: 0.8; }
-  .checklist-tile.owned img { border-color: var(--accent); }
+  .checklist-tile.owned img { border-color: var(--accent); cursor: pointer; }
+  .checklist-tile.owned img:hover { opacity: 0.7; }
   .checklist-tile .num { font-size: 10px; color: var(--text-muted); margin: 4px 0 1px; }
   .checklist-tile .variant-badge {
     font-size: 8px;
@@ -1272,7 +1291,7 @@
         tile.className = 'checklist-tile ' + (isOwned ? 'owned' : 'unowned');
         tile.innerHTML = `
           ${card.image_url
-            ? `<img src="${card.image_url}" alt="" loading="lazy" title="${card.name}" ${isOwned ? '' : `onclick="quickAddFromChecklist('${card.id}', '${variant}')"`}>`
+            ? `<img src="${card.image_url}" alt="" loading="lazy" title="${card.name}" onclick="${isOwned ? `removeFromChecklist('${card.id}', '${variant}')` : `quickAddFromChecklist('${card.id}', '${variant}')`}">`
             : `<div class="thumb-placeholder"></div>`}
           <p class="num">#${card.card_number || '?'}</p>
           ${variant !== 'Normal' ? `<p class="variant-badge">${variant}</p>` : ''}
@@ -1286,6 +1305,23 @@
 
   function closeSetChecklist() {
     document.getElementById('checklist-overlay').style.display = 'none';
+  }
+
+  async function removeFromChecklist(cardId, variant) {
+    const { error } = await supabaseClient
+      .from('user_collection')
+      .delete()
+      .eq('user_id', loadedUserId)
+      .eq('card_id', cardId)
+      .eq('variant', variant)
+      .eq('condition', 'Near Mint')
+      .eq('language', 'English');
+    if (error) console.error('Remove from checklist error:', error);
+
+    // Re-render in place so the tile flips back to grey right away, and
+    // refresh the dashboard behind it so the progress bar updates too
+    openSetChecklist(currentChecklistSetId, currentChecklistSetName);
+    loadDashboard(loadedUserId);
   }
 
   async function quickAddFromChecklist(cardId, variant) {
@@ -1308,6 +1344,13 @@
     // Re-render the checklist in place so the tile flips to full color right
     // away, and refresh the dashboard behind it so the progress bar updates too
     openSetChecklist(currentChecklistSetId, currentChecklistSetName);
+    loadDashboard(loadedUserId);
+  }
+
+  async function removeRecentCard(collectionRowId) {
+    if (!confirm('Remove this card from your collection? This cannot be undone.')) return;
+    const { error } = await supabaseClient.from('user_collection').delete().eq('id', collectionRowId);
+    if (error) { console.error('Remove card error:', error); return; }
     loadDashboard(loadedUserId);
   }
 
@@ -1421,6 +1464,7 @@
       const el = document.createElement('div');
       el.className = 'recent-card';
       el.innerHTML = `
+        <button class="remove-x" onclick="event.stopPropagation(); removeRecentCard('${row.id}')" title="Remove from collection"><i class="ti ti-x" aria-hidden="true"></i></button>
         ${card?.image_url
           ? `<img src="${card.image_url}" alt="" loading="lazy" onclick="openCardDetail('${card.id}', '${row.id}')">`
           : `<div class="thumb-placeholder"></div>`}
@@ -1917,7 +1961,7 @@
       tile.className = 'checklist-tile ' + (isOwned ? 'owned' : 'unowned');
       tile.innerHTML = `
         ${card.image_url
-          ? `<img src="${card.image_url}" alt="" loading="lazy" title="${card.name}" ${isOwned ? '' : `onclick="quickAddFromCustomChecklist('${card.id}')"`}>`
+          ? `<img src="${card.image_url}" alt="" loading="lazy" title="${card.name}" onclick="${isOwned ? `removeFromCustomChecklist('${card.id}')` : `quickAddFromCustomChecklist('${card.id}')`}">`
           : `<div class="thumb-placeholder"></div>`}
         <p class="num">#${card.card_number || '?'}</p>
       `;
@@ -1925,6 +1969,22 @@
     }
 
     document.getElementById('checklist-progress').textContent = `${ownedTiles}/${cards.length} owned`;
+  }
+
+  async function removeFromCustomChecklist(cardId) {
+    const { error } = await supabaseClient
+      .from('user_collection')
+      .delete()
+      .eq('user_id', loadedUserId)
+      .eq('card_id', cardId)
+      .eq('condition', 'Near Mint')
+      .eq('variant', 'Normal')
+      .eq('language', 'English');
+    if (error) console.error('Remove from custom checklist error:', error);
+
+    const c = currentCustomChecklist;
+    openCustomSetChecklist(c.customSetId, c.name, c.gameId, c.filterType, c.filterValue);
+    loadCustomMasterSets(loadedUserId);
   }
 
   async function quickAddFromCustomChecklist(cardId) {
