@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Digital TopLoader – Shared Collection</title>
+<script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #12151c;
+    --card: #1a1e28;
+    --border: #2a2f3b;
+    --text: #e7e9ee;
+    --text-muted: #8992a3;
+    --accent: #2E86FF;
+    --accent-light: #39D0FF;
+    --gold: #F6C453;
+    --danger: #e05a5a;
+  }
+  html.light {
+    --bg: #f4f5f8;
+    --card: #ffffff;
+    --border: #d8dbe1;
+    --text: #1a1d24;
+    --text-muted: #6b7280;
+    --accent: #1f6fe0;
+    --accent-light: #0891b2;
+    --gold: #b8860b;
+    --danger: #c53030;
+  }
+  * { box-sizing: border-box; }
+  * { scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: var(--bg); }
+  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    max-width: 420px;
+    width: 100%;
+    padding: 28px;
+    text-align: center;
+  }
+  .logo { width: 90px; margin-bottom: 18px; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; background: var(--bg); border: 1px solid var(--border); }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
+  .stat-row { display: flex; justify-content: center; gap: 28px; margin-bottom: 22px; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 24px; font-weight: 700; display: block; color: var(--accent-light); }
+  .stat .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .card-image { width: 180px; border-radius: 10px; margin: 0 auto 16px; display: block; }
+  .progress-track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { height: 100%; background: var(--accent); }
+  .cta-btn {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 8px;
+  }
+  .powered-by { margin-top: 18px; font-size: 11px; color: var(--text-muted); }
+  .powered-by a { color: var(--text-muted); }
+  .error-msg { color: var(--text-muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="card" id="share-card">
+  <img src="logo-vertical.png" alt="Digital TopLoader" class="logo">
+  <div id="share-content"><p class="error-msg">Loading...</p></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nzxnqrakcxsuqhsmxmhq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_DsRnbaCvlUHWK2EaAVE7kA_ccB26f2q';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function formatCurrency(n) {
+    return '$' + (Number(n) || 0).toFixed(2);
+  }
+
+  async function loadShare() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const contentEl = document.getElementById('share-content');
+
+    if (!token) {
+      contentEl.innerHTML = '<p class="error-msg">No share link provided.</p>';
+      return;
+    }
+
+    const { data, error } = await supabaseClient.rpc('get_public_share', { p_token: token });
+
+    if (error || !data || data.error) {
+      contentEl.innerHTML = '<p class="error-msg">This share link is no longer valid.</p><a class="cta-btn" href="index.html">Go to Digital TopLoader</a>';
+      return;
+    }
+
+    if (data.type === 'stats') {
+      contentEl.innerHTML = `
+        ${data.avatar_url ? `<img src="${data.avatar_url}" alt="" class="avatar">` : ''}
+        <h1>${data.display_name}'s Collection</h1>
+        <p class="sub">Tracked with Digital TopLoader</p>
+        <div class="stat-row">
+          <div class="stat"><span class="num">${data.unique_cards}</span><span class="label">Unique Cards</span></div>
+          <div class="stat"><span class="num">${data.total_cards}</span><span class="label">Total Cards</span></div>
+          <div class="stat"><span class="num">${formatCurrency(data.portfolio_value)}</span><span class="label">Value</span></div>
+        </div>
+        <a class="cta-btn" href="index.html">Sign up to track your own collection</a>
+      `;
+    } else if (data.type === 'master_set') {
+      const pct = data.total_cards > 0 ? Math.round((data.owned_count / data.total_cards) * 100) : 0;
+      contentEl.innerHTML = `
+        <h1>${data.set_name}</h1>
+        <p class="sub">${data.game_name}</p>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <p class="sub" style="margin-bottom:20px;">${data.owned_count}/${data.total_cards} cards · ${pct}% complete</p>
+        <a class="cta-btn" href="index.html">Track your own sets on Digital TopLoader</a>
+      `;
+    } else if (data.type === 'card') {
+      contentEl.innerHTML = `
+        ${data.image_url ? `<img src="${data.image_url}" alt="" class="card-image">` : ''}
+        <h1>${data.card_name}</h1>
+        <p class="sub">${data.set_name}${data.card_number ? ' #' + data.card_number : ''} · ${data.game_name}</p>
+        ${data.market_price ? `<p class="sub" style="font-size:20px; color:var(--gold); font-weight:600;">${formatCurrency(data.market_price)}</p>` : ''}
+        <a class="cta-btn" href="index.html">Track your own collection on Digital TopLoader</a>
+      `;
+    } else {
+      contentEl.innerHTML = '<p class="error-msg">This share link is no longer valid.</p><a class="cta-btn" href="index.html">Go to Digital TopLoader</a>';
+    }
+  }
+
+  loadShare();
+</script>
+</body>
+</html>
