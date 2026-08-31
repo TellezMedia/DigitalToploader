@@ -875,6 +875,16 @@
   <div class="detail-panel" id="detail-panel-content"></div>
 </div>
 
+<div id="share-modal-overlay" onclick="if(event.target === this) closeShareModal()" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,14,26,0.85); align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; max-width:380px; width:100%; padding:24px; position:relative; text-align:center;">
+    <button class="close-detail" onclick="closeShareModal()" style="position:absolute; top:14px; right:16px;">&times;</button>
+    <h3 style="margin:0 0 4px;">Share</h3>
+    <p class="sub" style="color:var(--text-muted); font-size:13px; margin:0 0 16px;" id="share-modal-subtitle"></p>
+    <input type="text" id="share-modal-link" readonly style="width:100%; background:var(--card); border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:6px; font-size:12px; margin-bottom:16px; text-align:center;">
+    <div id="share-modal-icons" style="display:flex; justify-content:center; gap:10px;"></div>
+  </div>
+</div>
+
 <div id="checklist-overlay" onclick="if(event.target === this) closeSetChecklist()">
   <div class="checklist-panel">
     <button class="close-detail" onclick="closeSetChecklist()"><i class="ti ti-x" aria-hidden="true"></i></button>
@@ -1234,7 +1244,7 @@
         <button class="add-btn" onclick="addCardFromDashboard('${card.id}')">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
         <button class="alert-btn${onWatchlist ? ' active' : ''}" id="detail-alert-btn" onclick="toggleWatchlistDetail('${card.id}')">${onWatchlist ? 'Alert set' : 'Alert'}</button>
-        <button class="wishlist-btn" onclick="shareCard('${card.id}')"><i class="ti ti-share-2" aria-hidden="true"></i> Share</button>
+        <button class="wishlist-btn" onclick="shareCard('${card.id}', '${(card.name || '').replace(/'/g, "\\'")}')"><i class="ti ti-share-2" aria-hidden="true"></i> Share</button>
       </div>
     `;
 
@@ -2163,11 +2173,11 @@
         card.addEventListener('click', () => openSetChecklist(set.id, set.name));
         card.innerHTML = `
           <button style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); unflagMasterSet('${row.id}')" title="Remove from Set Completion"><i class="ti ti-x" aria-hidden="true"></i></button>
-          <button style="position:absolute; top:8px; right:32px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); shareMasterSet('${set.id}')" title="Share this set"><i class="ti ti-share-2" aria-hidden="true"></i></button>
           <p class="name">${set.name}</p>
           <p class="game">${set.games?.name || ''}</p>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
           <p class="sub" style="margin-top:6px;">${ownedInSet || 0}/${set.total_cards} cards · ${pct}%</p>
+          <a href="#" onclick="event.stopPropagation(); event.preventDefault(); shareMasterSet('${set.id}', '${(set.name || '').replace(/'/g, "\\'")}')" style="display:block; margin-top:8px; font-size:11px; color:var(--accent-light); text-decoration:none;"><i class="ti ti-share-2" aria-hidden="true"></i> Share Master Set Progress</a>
         `;
         masterSetEntries.push({ gameName, element: card });
       }
@@ -2179,7 +2189,44 @@
   let currentMasterSets = [];
 
   // ---- Sharing ----
-  async function createShareLink(fields) {
+  function buildShareIcons(url, title) {
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+    const xUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+    const mailUrl = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`;
+    const smsUrl = `sms:?&body=${encodeURIComponent(title + ' ' + url)}`;
+    const baseStyle = 'display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; padding:9px; border-radius:50%; text-decoration:none;';
+    const fbStyle = `${baseStyle} background:#1877F2;`;
+    const xStyle = `${baseStyle} background:#000;`;
+    const mailStyle = `${baseStyle} background:#2E86FF;`;
+    const smsStyle = `${baseStyle} background:#34C759;`;
+    return `
+      <a href="${fbUrl}" target="_blank" rel="noopener" title="Share on Facebook" style="${fbStyle}">
+        <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M211.9 197.4h-36.7v59.9h36.7V433.1h70.5V256.5h49.2l5.2-59.1h-54.4c0 0 0-22.1 0-33.7 0-13.9 2.8-19.5 16.3-19.5 10.9 0 38.2 0 38.2 0V82.9c0 0-40.2 0-48.8 0 -52.5 0-76.1 23.1-76.1 67.3C211.9 188.8 211.9 197.4 211.9 197.4z"/></svg>
+      </a>
+      <a href="${xUrl}" target="_blank" rel="noopener" title="Share on X" style="${xStyle}">
+        <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><g transform="translate(64,64) scale(0.75,0.75)"><path fill="#fff" d="M403.2 48h78.643l-171.52 196.544L512 488h-158.016l-123.744-161.248L99.136 488H10.112l183.456-210.24L0 48h161.024l111.84 148.288L403.2 48zm-27.52 417.792h43.52L138.368 68.672H91.776z"/></g></svg>
+      </a>
+      <a href="${mailUrl}" title="Share by Email" style="${mailStyle}">
+        <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M101.3 141.6v228.9h0.3 308.4 0.8V141.6H101.3zM375.7 167.8l-119.7 91.5 -119.6-91.5H375.7zM127.6 194.1l64.1 49.1 -64.1 64.1V194.1zM127.8 344.2l84.9-84.9 43.2 33.1 43-32.9 84.7 84.7L127.8 344.2 127.8 344.2zM384.4 307.8l-64.4-64.4 64.4-49.3V307.8z"/></svg>
+      </a>
+      <a href="${smsUrl}" title="Share by Text" style="${smsStyle}">
+        <svg viewBox="0 0 24 24" width="26" height="26" style="display:block;"><path fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+      </a>
+    `;
+  }
+
+  function openShareModal(url, title) {
+    document.getElementById('share-modal-subtitle').textContent = title;
+    document.getElementById('share-modal-link').value = url;
+    document.getElementById('share-modal-icons').innerHTML = buildShareIcons(url, title);
+    document.getElementById('share-modal-overlay').style.display = 'flex';
+  }
+
+  function closeShareModal() {
+    document.getElementById('share-modal-overlay').style.display = 'none';
+  }
+
+  async function createShareLink(fields, title) {
     const { data, error } = await supabaseClient
       .from('shares')
       .insert({ user_id: loadedUserId, ...fields })
@@ -2193,25 +2240,20 @@
     }
 
     const url = `${window.location.origin}${window.location.pathname.replace(/[^/]+$/, '')}share.html?token=${data.share_token}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      alert('Share link copied to clipboard!\n\n' + url);
-    } catch (e) {
-      prompt('Copy this share link:', url);
-    }
+    openShareModal(url, title);
     return url;
   }
 
   function shareStats() {
-    createShareLink({ share_type: 'stats' });
+    createShareLink({ share_type: 'stats' }, 'My Digital TopLoader collection');
   }
 
-  function shareMasterSet(setId) {
-    createShareLink({ share_type: 'master_set', set_id: setId });
+  function shareMasterSet(setId, setName) {
+    createShareLink({ share_type: 'master_set', set_id: setId }, `My progress on ${setName}`);
   }
 
-  function shareCard(cardId) {
-    createShareLink({ share_type: 'card', card_id: cardId });
+  function shareCard(cardId, cardName) {
+    createShareLink({ share_type: 'card', card_id: cardId }, cardName || 'Check out this card');
   }
 
   async function unflagMasterSet(userMasterSetRowId) {

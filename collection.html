@@ -886,18 +886,22 @@
     const xUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
     const mailUrl = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`;
     const smsUrl = `sms:?&body=${encodeURIComponent(title + ' ' + url)}`;
-    const btnStyle = 'display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; padding:9px; background:linear-gradient(135deg,#764ba2 0%,#9333ea 100%); border-radius:50%; text-decoration:none;';
+    const baseStyle = 'display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; padding:9px; border-radius:50%; text-decoration:none;';
+    const fbStyle = `${baseStyle} background:#1877F2;`;
+    const xStyle = `${baseStyle} background:#000;`;
+    const mailStyle = `${baseStyle} background:#2E86FF;`;
+    const smsStyle = `${baseStyle} background:#34C759;`;
     return `
-      <a href="${fbUrl}" target="_blank" rel="noopener" title="Share on Facebook" style="${btnStyle}">
+      <a href="${fbUrl}" target="_blank" rel="noopener" title="Share on Facebook" style="${fbStyle}">
         <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M211.9 197.4h-36.7v59.9h36.7V433.1h70.5V256.5h49.2l5.2-59.1h-54.4c0 0 0-22.1 0-33.7 0-13.9 2.8-19.5 16.3-19.5 10.9 0 38.2 0 38.2 0V82.9c0 0-40.2 0-48.8 0 -52.5 0-76.1 23.1-76.1 67.3C211.9 188.8 211.9 197.4 211.9 197.4z"/></svg>
       </a>
-      <a href="${xUrl}" target="_blank" rel="noopener" title="Share on X" style="${btnStyle}">
+      <a href="${xUrl}" target="_blank" rel="noopener" title="Share on X" style="${xStyle}">
         <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><g transform="translate(64,64) scale(0.75,0.75)"><path fill="#fff" d="M403.2 48h78.643l-171.52 196.544L512 488h-158.016l-123.744-161.248L99.136 488H10.112l183.456-210.24L0 48h161.024l111.84 148.288L403.2 48zm-27.52 417.792h43.52L138.368 68.672H91.776z"/></g></svg>
       </a>
-      <a href="${mailUrl}" title="Share by Email" style="${btnStyle}">
+      <a href="${mailUrl}" title="Share by Email" style="${mailStyle}">
         <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M101.3 141.6v228.9h0.3 308.4 0.8V141.6H101.3zM375.7 167.8l-119.7 91.5 -119.6-91.5H375.7zM127.6 194.1l64.1 49.1 -64.1 64.1V194.1zM127.8 344.2l84.9-84.9 43.2 33.1 43-32.9 84.7 84.7L127.8 344.2 127.8 344.2zM384.4 307.8l-64.4-64.4 64.4-49.3V307.8z"/></svg>
       </a>
-      <a href="${smsUrl}" title="Share by Text" style="${btnStyle}">
+      <a href="${smsUrl}" title="Share by Text" style="${smsStyle}">
         <svg viewBox="0 0 24 24" width="26" height="26" style="display:block;"><path fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
       </a>
     `;

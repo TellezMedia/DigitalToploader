@@ -101,6 +101,11 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.54 — social layer, real brand colors on share icons
+
+**Fixed:**
+- Share icon buttons no longer use a generic purple gradient, each now uses its actual platform color: Facebook blue, X black, Email the site's own accent blue, Text green.
+
 ## v0.53 — social layer, per-set sharing
 
 **Added:**

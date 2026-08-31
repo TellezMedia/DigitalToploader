@@ -6,8 +6,16 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Digital TopLoader – Shared Collection</title>
+<!-- Static OG tags: this is a static site with no server-side rendering,
+     so link-preview crawlers (which don't run JS) always see this generic
+     branding, not the specific card/stat behind a given share token. A
+     truly per-link dynamic preview would need a server-rendering layer. -->
+<meta property="og:title" content="Digital TopLoader">
+<meta property="og:description" content="Track and share your TCG collection.">
+<meta property="og:type" content="website">
 <script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
   :root {
     --bg: #12151c;
@@ -39,7 +47,10 @@
   *::-webkit-scrollbar-thumb:hover { background: var(--accent); }
   body {
     margin: 0;
-    background: var(--bg);
+    background:
+      radial-gradient(circle at 20% 0%, rgba(46,134,255,0.16), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(246,196,83,0.10), transparent 40%),
+      var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
@@ -51,37 +62,44 @@
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    max-width: 420px;
+    border-radius: 16px;
+    max-width: 440px;
     width: 100%;
-    padding: 28px;
+    padding: 32px;
     text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
   }
-  .logo { width: 90px; margin-bottom: 18px; }
-  .avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; background: var(--bg); border: 1px solid var(--border); }
-  h1 { font-size: 18px; margin: 0 0 6px; }
+  .logo { width: 84px; margin-bottom: 16px; }
+  .avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; background: var(--bg); border: 2px solid var(--accent); }
+  h1 { font-size: 20px; margin: 0 0 6px; }
   .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
-  .stat-row { display: flex; justify-content: center; gap: 28px; margin-bottom: 22px; }
+  .stat-row { display: flex; justify-content: center; gap: 24px; margin-bottom: 24px; }
   .stat { text-align: center; }
   .stat .num { font-size: 24px; font-weight: 700; display: block; color: var(--accent-light); }
-  .stat .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
-  .card-image { width: 180px; border-radius: 10px; margin: 0 auto 16px; display: block; }
+  .stat .label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .card-image { width: 190px; border-radius: 12px; margin: 0 auto 18px; display: block; box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
   .progress-track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
-  .progress-fill { height: 100%; background: var(--accent); }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
   .cta-btn {
     display: inline-block;
     background: linear-gradient(90deg, var(--accent), var(--accent-light));
     color: #fff;
     border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
+    padding: 13px 26px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     text-decoration: none;
-    margin-top: 8px;
+    margin-top: 6px;
   }
+  .share-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 18px 0 4px;
+  }
+  .share-note { font-size: 11px; color: var(--text-muted); margin: 0 0 4px; }
   .powered-by { margin-top: 18px; font-size: 11px; color: var(--text-muted); }
-  .powered-by a { color: var(--text-muted); }
   .error-msg { color: var(--text-muted); font-size: 14px; }
 </style>
 </head>
@@ -99,6 +117,35 @@
 
   function formatCurrency(n) {
     return '$' + (Number(n) || 0).toFixed(2);
+  }
+
+  function buildShareRow(title) {
+    const url = window.location.href;
+    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+    const xUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+    const mailUrl = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`;
+    const smsUrl = `sms:?&body=${encodeURIComponent(title + ' ' + url)}`;
+    const baseStyle = 'display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; padding:9px; border-radius:50%; text-decoration:none;';
+    const fbStyle = `${baseStyle} background:#1877F2;`;
+    const xStyle = `${baseStyle} background:#000;`;
+    const mailStyle = `${baseStyle} background:#2E86FF;`;
+    const smsStyle = `${baseStyle} background:#34C759;`;
+    return `
+      <div class="share-row">
+        <a href="${fbUrl}" target="_blank" rel="noopener" title="Share on Facebook" style="${fbStyle}">
+          <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M211.9 197.4h-36.7v59.9h36.7V433.1h70.5V256.5h49.2l5.2-59.1h-54.4c0 0 0-22.1 0-33.7 0-13.9 2.8-19.5 16.3-19.5 10.9 0 38.2 0 38.2 0V82.9c0 0-40.2 0-48.8 0 -52.5 0-76.1 23.1-76.1 67.3C211.9 188.8 211.9 197.4 211.9 197.4z"/></svg>
+        </a>
+        <a href="${xUrl}" target="_blank" rel="noopener" title="Share on X" style="${xStyle}">
+          <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><g transform="translate(64,64) scale(0.75,0.75)"><path fill="#fff" d="M403.2 48h78.643l-171.52 196.544L512 488h-158.016l-123.744-161.248L99.136 488H10.112l183.456-210.24L0 48h161.024l111.84 148.288L403.2 48zm-27.52 417.792h43.52L138.368 68.672H91.776z"/></g></svg>
+        </a>
+        <a href="${mailUrl}" title="Share by Email" style="${mailStyle}">
+          <svg viewBox="0 0 512 512" width="26" height="26" style="display:block;"><path fill="#fff" d="M101.3 141.6v228.9h0.3 308.4 0.8V141.6H101.3zM375.7 167.8l-119.7 91.5 -119.6-91.5H375.7zM127.6 194.1l64.1 49.1 -64.1 64.1V194.1zM127.8 344.2l84.9-84.9 43.2 33.1 43-32.9 84.7 84.7L127.8 344.2 127.8 344.2zM384.4 307.8l-64.4-64.4 64.4-49.3V307.8z"/></svg>
+        </a>
+        <a href="${smsUrl}" title="Share by Text" style="${smsStyle}">
+          <svg viewBox="0 0 24 24" width="26" height="26" style="display:block;"><path fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></svg>
+        </a>
+      </div>
+    `;
   }
 
   async function loadShare() {
@@ -124,10 +171,24 @@
         <h1>${data.display_name}'s Collection</h1>
         <p class="sub">Tracked with Digital TopLoader</p>
         <div class="stat-row">
-          <div class="stat"><span class="num">${data.unique_cards}</span><span class="label">Unique Cards</span></div>
-          <div class="stat"><span class="num">${data.total_cards}</span><span class="label">Total Cards</span></div>
+          <div class="stat"><span class="num">${data.unique_cards}</span><span class="label">Unique</span></div>
+          <div class="stat"><span class="num">${data.total_cards}</span><span class="label">Total</span></div>
           <div class="stat"><span class="num">${formatCurrency(data.portfolio_value)}</span><span class="label">Value</span></div>
         </div>
+        ${buildShareRow(`${data.display_name}'s Digital TopLoader collection`)}
+        <a class="cta-btn" href="index.html">Sign up to track your own collection</a>
+      `;
+    } else if (data.type === 'game_collection') {
+      contentEl.innerHTML = `
+        ${data.avatar_url ? `<img src="${data.avatar_url}" alt="" class="avatar">` : ''}
+        <h1>${data.display_name}'s ${data.game_name} Collection</h1>
+        <p class="sub">Tracked with Digital TopLoader</p>
+        <div class="stat-row">
+          <div class="stat"><span class="num">${data.unique_cards}</span><span class="label">Unique</span></div>
+          <div class="stat"><span class="num">${data.total_cards}</span><span class="label">Total</span></div>
+          <div class="stat"><span class="num">${formatCurrency(data.portfolio_value)}</span><span class="label">Value</span></div>
+        </div>
+        ${buildShareRow(`${data.display_name}'s ${data.game_name} collection`)}
         <a class="cta-btn" href="index.html">Sign up to track your own collection</a>
       `;
     } else if (data.type === 'master_set') {
@@ -136,7 +197,8 @@
         <h1>${data.set_name}</h1>
         <p class="sub">${data.game_name}</p>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <p class="sub" style="margin-bottom:20px;">${data.owned_count}/${data.total_cards} cards · ${pct}% complete</p>
+        <p class="sub">${data.owned_count}/${data.total_cards} cards · ${pct}% complete</p>
+        ${buildShareRow(`${data.set_name} — ${pct}% complete on Digital TopLoader`)}
         <a class="cta-btn" href="index.html">Track your own sets on Digital TopLoader</a>
       `;
     } else if (data.type === 'card') {
@@ -145,6 +207,7 @@
         <h1>${data.card_name}</h1>
         <p class="sub">${data.set_name}${data.card_number ? ' #' + data.card_number : ''} · ${data.game_name}</p>
         ${data.market_price ? `<p class="sub" style="font-size:20px; color:var(--gold); font-weight:600;">${formatCurrency(data.market_price)}</p>` : ''}
+        ${buildShareRow(`${data.card_name} — ${data.set_name}`)}
         <a class="cta-btn" href="index.html">Track your own collection on Digital TopLoader</a>
       `;
     } else {
