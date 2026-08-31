@@ -474,24 +474,32 @@ async function updateExchangeRates() {
   }
 }
 
-async function checkForPalworldOnTcgcsv() {
+// Games we don't have a free TCGCSV/TCGPlayer category for yet, but are
+// watching for. When one shows up here, that game's pricing (and possibly
+// catalog) becomes available through the same free pipeline as everything
+// else, just needs its tcgcsvCategoryId added to GAMES above.
+const TCGCSV_WATCHLIST = ['palworld', 'cyberpunk'];
+
+async function checkTcgcsvWatchlist() {
   try {
     const res = await fetch('https://tcgcsv.com/tcgplayer/categories');
     if (!res.ok) return;
     const json = await res.json();
     const categories = json.results || [];
-    const match = categories.find((c) => /palworld/i.test(c.name || ''));
-    if (match) {
-      console.log(`\n*** HEADS UP: TCGCSV now lists a "${match.name}" category (id ${match.categoryId}). ***`);
-      console.log('*** Palworld pricing may now be available for free via TCGCSV. Update GAMES in import.js. ***\n');
+    for (const term of TCGCSV_WATCHLIST) {
+      const match = categories.find((c) => new RegExp(term, 'i').test(c.name || ''));
+      if (match) {
+        console.log(`\n*** HEADS UP: TCGCSV now lists a "${match.name}" category (id ${match.categoryId}). ***`);
+        console.log(`*** ${term} pricing may now be available for free via TCGCSV. Add it to GAMES in import.js. ***\n`);
+      }
     }
   } catch (err) {
-    console.log(`  (Palworld/TCGCSV check skipped: ${err.message})`);
+    console.log(`  (TCGCSV watchlist check skipped: ${err.message})`);
   }
 }
 
 async function main() {
-  await checkForPalworldOnTcgcsv();
+  await checkTcgcsvWatchlist();
   await updateExchangeRates();
   for (const game of GAMES) {
     if (game.source === 'palworldtcg') {
