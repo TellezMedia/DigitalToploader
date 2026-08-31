@@ -101,6 +101,22 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.53 — social layer, per-set sharing
+
+**Added:**
+- "Share" link on every individual set row in Collection (not just Master Sets on the Dashboard), using the spare horizontal space between the card count and the "Master set" checkbox. Works for any set, flagged as Master Set or not.
+
+## v0.52 — social layer, real share icons + per-game sharing
+
+**Changed:**
+- Sharing now opens a proper modal with real brand icon buttons (Facebook, X, Email, Text) that push directly to that platform's share dialog, instead of a plain "link copied" alert. Instagram was dropped from the list per request, it has no public web-share URL the way the other four do, so a button for it there would have been decorative only.
+- "Share Master Set Progress" is now a visible text link on each Master Set tile, not just an icon.
+- New: share a whole game's collection stats (e.g. "my Pokemon collection") from the Collection page, a "Share" link now sits next to "View All" on each game's header.
+
+**Setup required after this release:**
+1. Run `schema_addition_v14.sql` in Supabase SQL Editor (adds the `game_collection` share type and a `game_id` column to `shares`).
+2. Upload `share.html`, `index.html`, and `collection.html`.
+
 ## v0.51 — social layer, share links
 
 **Added:**
