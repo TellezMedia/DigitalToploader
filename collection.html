@@ -870,6 +870,28 @@
 
   let currentUserId = null;
 
+  async function shareCard(cardId) {
+    const { data, error } = await supabaseClient
+      .from('shares')
+      .insert({ user_id: currentUserId, share_type: 'card', card_id: cardId })
+      .select('share_token')
+      .single();
+
+    if (error || !data) {
+      alert('Could not create share link, see console.');
+      console.error('Create share link error:', error);
+      return;
+    }
+
+    const url = `${window.location.origin}${window.location.pathname.replace(/[^/]+$/, '')}share.html?token=${data.share_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Share link copied to clipboard!\n\n' + url);
+    } catch (e) {
+      prompt('Copy this share link:', url);
+    }
+  }
+
   async function signInWithGoogle() {
     const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
     if (error) console.error('Sign-in error:', error);
@@ -1064,6 +1086,7 @@
         <button class="add-btn" onclick="addCard('${card.id}'); closeCardDetail();">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
         <button class="alert-btn${onWatchlist ? ' active' : ''}" id="detail-alert-btn" onclick="toggleWatchlistDetail('${card.id}')">${onWatchlist ? 'Alert set' : 'Alert'}</button>
+        <button class="wishlist-btn" onclick="shareCard('${card.id}')"><i class="ti ti-share-2" aria-hidden="true"></i> Share</button>
       </div>
     `;
 
@@ -1354,13 +1377,17 @@
     loadCollection();
   }
 
-  async function toggleMasterSet(setId, checked) {
+  async function toggleMasterSet(setId, checked, checkboxEl) {
     if (checked) {
       const { error } = await supabaseClient
         .from('user_master_sets')
         .upsert({ user_id: currentUserId, set_id: setId }, { onConflict: 'user_id,set_id' });
       if (error) console.error('Master set flag error:', error);
     } else {
+      if (!confirm('Remove this set from Set Completion tracking? You can re-check this box anytime to add it back.')) {
+        if (checkboxEl) checkboxEl.checked = true; // undo the accidental uncheck
+        return;
+      }
       const { error } = await supabaseClient
         .from('user_master_sets')
         .delete()
@@ -1830,7 +1857,7 @@
               <span class="game">${countLabel}</span>
             </div>
             <label class="master-toggle" onclick="event.stopPropagation()">
-              <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked)">
+              <input type="checkbox" ${isMaster ? 'checked' : ''} onchange="toggleMasterSet('${set.id}', this.checked, this)">
               Master set
             </label>
           </div>

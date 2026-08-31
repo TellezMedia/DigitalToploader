@@ -4,6 +4,32 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.28 (core app)
+
+**Added:**
+- Recently Added tiles on the Dashboard now have a remove (×) button, matching the Collection page's tiles, they never had one before.
+- Master Set Checklist and Custom Master Set Checklist: clicking a greyed-out (unowned) card still adds it as before, but now clicking a colored (owned) card removes it, a true toggle. This is scoped only to these two checklist modals, the regular Collection page tiles keep their existing quantity stepper and × removal, unchanged.
+
+## v0.27.6 (core app, patch)
+
+**Added:**
+- Unchecking "Master set" in Collection now asks for confirmation before actually removing the flag, and reverts the checkbox back to checked if you cancel. Checking it (adding) still happens instantly since that's non-destructive. This matches the confirmation that already existed on the Dashboard's × remove button.
+
+## v0.27.5 (core app, patch)
+
+**Fixed:**
+- Ability tag pill text was invisible in light mode, it used `var(--bg)` for the text color, which is near-white in light mode, on a pill that's always white. Since the pill background doesn't change with the theme, the text can't either, switched to a fixed dark navy color so it reads correctly in both dark and light mode.
+
+## v0.27.4 (core app, patch)
+
+**Fixed:**
+- Ability text was splitting into a new pill at every occurrence of CONT/AUTO/etc., even when the tag was just referenced mid-sentence (e.g. "your Pal's AUTO activates twice" got wrongly cut into its own pill). Now only splits at the start of the text or right after a sentence-ending period, so referenced tags inside a sentence stay part of that sentence.
+
+## v0.27.3 (core app, patch)
+
+**Changed:**
+- Ability tag pills (CONT, AUTO, etc.) are now white with the text colored using `var(--bg)`, so it's theme-reactive as requested. Note: in light mode, `--bg` is a very light near-white (#f4f5f8), so the text will read as low-contrast/near-invisible on the white pill there, this is a known trade-off of using the literal background variable rather than a fixed dark color; flagged to Tony, no change made unless he asks for a fixed-color version instead.
+
 ## v0.27.2 (core app, patch)
 
 **Added:**
@@ -74,6 +100,17 @@ independently.
 **Setup required after this release:**
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
+
+## v0.51 — social layer, share links
+
+**Added:**
+- Share your collection stats, a Master Set's completion, or a single card as a public link, no sign-in required to view. "Share collection" link near Portfolio Value, a share icon on each Master Set tile, and a "Share" button in the card detail modal (both index.html and collection.html). Copies the link to your clipboard (falls back to a prompt if clipboard access is blocked).
+- New public page `share.html`: a simple read-only view of whatever was shared, with a "Sign up" call-to-action pointing back to the app. Backed by a new `shares` table (random token, not the raw user/set/card id) and a `get_public_share()` database function that returns only the narrow data for that one share, nothing else about the user's account is exposed.
+- This is a copyable-link approach for now (paste it anywhere yourself), not native share-sheet integration or direct Facebook/X/Email/SMS buttons, that can be layered on top of this later if wanted.
+
+**Setup required after this release:**
+1. Run `schema_addition_v13.sql` in Supabase SQL Editor (adds the `shares` table and `get_public_share()` function).
+2. Upload `share.html` alongside your other pages, it needs to be a real page at that path for links to work.
 
 ## v0.50 (2026-08-28) — social layer, alpha
 

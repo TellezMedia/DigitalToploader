@@ -19,6 +19,7 @@ pending below.
 | `schema_addition_v10.sql` | **Pending** | Adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases` (v0.21) |
 | `schema_addition_v11.sql` | **Pending** | Adds `custom_master_sets` table and `distinct_card_types`/`distinct_card_rarities` views (v0.22) |
 | `schema_addition_v12.sql` | **Pending** | Adds `subtype`/`effect_text`/`work_keywords` to `cards` for the Palworld card info popup (v0.26) |
+| `schema_addition_v13.sql` | **Pending** | Adds `shares` table + `get_public_share()` function for public share links (v0.51, social track) |
 
 When the next release adds a schema change, add a new `schema_addition_vN.sql`
 and a new row here rather than editing an already-applied file. Note which

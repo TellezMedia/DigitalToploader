@@ -765,7 +765,11 @@
 
   <div class="layout">
     <div id="stats-column">
-      <div class="stat-card"><p class="label">Portfolio value</p><p class="value" id="stat-value">-</p></div>
+      <div class="stat-card">
+        <p class="label">Portfolio value</p>
+        <p class="value" id="stat-value">-</p>
+        <a href="#" onclick="shareStats(); return false;" style="display:inline-block; margin-top:8px; font-size:12px; color:var(--accent-light); text-decoration:none;"><i class="ti ti-share-2" aria-hidden="true"></i> Share collection</a>
+      </div>
       <div class="stat-card"><p class="label">Unique cards</p><p class="value" id="stat-unique">-</p><p class="sub" id="stat-sets-sub">-</p></div>
       <div class="stat-card"><p class="label">Total cards</p><p class="value" id="stat-total">-</p></div>
       <hr class="sidebar-divider">
@@ -1230,6 +1234,7 @@
         <button class="add-btn" onclick="addCardFromDashboard('${card.id}')">Add to Collection</button>
         <button class="wishlist-btn${onWishlist ? ' active' : ''}" id="detail-wishlist-btn" onclick="toggleWishlistDetail('${card.id}')">${onWishlist ? 'On Wishlist' : 'Wishlist'}</button>
         <button class="alert-btn${onWatchlist ? ' active' : ''}" id="detail-alert-btn" onclick="toggleWatchlistDetail('${card.id}')">${onWatchlist ? 'Alert set' : 'Alert'}</button>
+        <button class="wishlist-btn" onclick="shareCard('${card.id}')"><i class="ti ti-share-2" aria-hidden="true"></i> Share</button>
       </div>
     `;
 
@@ -2158,6 +2163,7 @@
         card.addEventListener('click', () => openSetChecklist(set.id, set.name));
         card.innerHTML = `
           <button style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); unflagMasterSet('${row.id}')" title="Remove from Set Completion"><i class="ti ti-x" aria-hidden="true"></i></button>
+          <button style="position:absolute; top:8px; right:32px; background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" onclick="event.stopPropagation(); shareMasterSet('${set.id}')" title="Share this set"><i class="ti ti-share-2" aria-hidden="true"></i></button>
           <p class="name">${set.name}</p>
           <p class="game">${set.games?.name || ''}</p>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -2171,6 +2177,42 @@
   }
 
   let currentMasterSets = [];
+
+  // ---- Sharing ----
+  async function createShareLink(fields) {
+    const { data, error } = await supabaseClient
+      .from('shares')
+      .insert({ user_id: loadedUserId, ...fields })
+      .select('share_token')
+      .single();
+
+    if (error || !data) {
+      alert('Could not create share link, see console.');
+      console.error('Create share link error:', error);
+      return null;
+    }
+
+    const url = `${window.location.origin}${window.location.pathname.replace(/[^/]+$/, '')}share.html?token=${data.share_token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Share link copied to clipboard!\n\n' + url);
+    } catch (e) {
+      prompt('Copy this share link:', url);
+    }
+    return url;
+  }
+
+  function shareStats() {
+    createShareLink({ share_type: 'stats' });
+  }
+
+  function shareMasterSet(setId) {
+    createShareLink({ share_type: 'master_set', set_id: setId });
+  }
+
+  function shareCard(cardId) {
+    createShareLink({ share_type: 'card', card_id: cardId });
+  }
 
   async function unflagMasterSet(userMasterSetRowId) {
     if (!confirm('Remove this set from Set Completion? Your collection is unaffected.')) return;
