@@ -101,6 +101,11 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.29.4 (core app, patch)
+
+**Fixed:**
+- Topbar right-side controls were wrapping onto a second line on index.html and collection.html. Root cause: that container was a plain `<div>` with no layout rule, and `.user-menu` is a block-level div by default; once it got reordered to sit first (a few builds back), its block behavior started forcing every sibling after it onto a new line. The Discord badge just made the existing bug visible. Fixed by making the container an actual flex row on all four pages.
+
 ## v0.29.3 (core app, patch)
 
 **Fixed:**
