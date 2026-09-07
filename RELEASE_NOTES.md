@@ -101,6 +101,14 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.29.3 (core app, patch)
+
+**Fixed:**
+- Individual Cards search row (card name input + Search button) was overflowing past the right sidebar's edge, a classic flexbox gotcha: the input's `flex:1` doesn't shrink below its content size without `min-width:0`. Fixed there and applied the same fix to profile.html's collector search row, which had the identical pattern.
+
+**Added:**
+- Discord badge in the topbar of all four pages, styled like the PogoDex Tracker site (Discord blurple pill, top-right area), linking to the Digital TopLoader Discord.
+
 ## v0.29.2 (core app, patch)
 
 **Added:**

@@ -778,6 +778,9 @@
           <a href="#" onclick="signOut(); return false;">Sign out</a>
         </div>
       </div>
+      <a href="https://discord.gg/Z4mRbEPCXZ" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#5865F2; color:#fff; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; text-decoration:none; margin-right:10px;">
+        <i class="ti ti-brand-discord" aria-hidden="true"></i> Discord
+      </a>
       <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
         <option value="USD">🇺🇸 USD</option>
@@ -910,8 +913,8 @@
           </select>
           <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Search for a card</label>
           <div style="display:flex; gap:6px; margin-bottom:8px;">
-            <input type="text" id="cpb-card-search-input" placeholder="Card name..." onkeydown="if(event.key==='Enter') searchCardsForPurchase()" style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
-            <button class="add-btn secondary" onclick="searchCardsForPurchase()">Search</button>
+            <input type="text" id="cpb-card-search-input" placeholder="Card name..." onkeydown="if(event.key==='Enter') searchCardsForPurchase()" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <button class="add-btn secondary" style="flex-shrink:0; padding:6px 12px; font-size:12px;" onclick="searchCardsForPurchase()">Search</button>
           </div>
           <div id="cpb-search-results" style="margin-bottom:10px;"></div>
 

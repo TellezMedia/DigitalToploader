@@ -202,7 +202,7 @@
     font-style: italic;
   }
   .search-row { display: flex; gap: 10px; margin-bottom: 14px; }
-  .search-row input { flex: 1; margin-bottom: 0; }
+  .search-row input { flex: 1; min-width: 0; margin-bottom: 0; }
   .search-results { display: flex; flex-direction: column; gap: 8px; }
   .search-result-row {
     display: flex;
@@ -281,6 +281,9 @@
       <a href="profile.html" class="active">Profile</a>
     </div>
     <div>
+      <a href="https://discord.gg/Z4mRbEPCXZ" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#5865F2; color:#fff; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; text-decoration:none; margin-right:10px;">
+        <i class="ti ti-brand-discord" aria-hidden="true"></i> Discord
+      </a>
       <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark mode"><i class="ti" id="theme-toggle-icon"></i></button>
       <div class="user-menu" id="user-menu">
         <button class="user-menu-trigger" onclick="toggleUserMenu()">
