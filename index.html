@@ -846,24 +846,48 @@
 
       <div class="profile-panel" id="log-purchase-panel" style="margin-top:14px;">
         <p class="section-label">Log a purchase</p>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Game</label>
-        <select id="purchase-game-select" onchange="onPurchaseGameChange()" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Set</label>
-        <select id="purchase-set-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Product</label>
-        <select id="purchase-product-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
-          <option>Booster Box</option>
-          <option>Elite Trainer Box</option>
-          <option>Blister Pack</option>
-          <option>Bundle</option>
-          <option>Tin</option>
-          <option value="Other">Other</option>
-        </select>
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Price paid</label>
-        <input type="number" id="purchase-price-input" min="0" step="0.01" placeholder="e.g. 149.99" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
-        <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Source</label>
-        <input type="text" id="purchase-source-input" placeholder="e.g. Local game store, eBay" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
-        <button class="add-btn" style="width:100%; padding:7px;" onclick="logProductPurchase()">Add purchase</button>
+        <div style="display:flex; gap:6px; margin-bottom:12px;">
+          <button id="purchase-mode-sealed-btn" onclick="setPurchaseMode('sealed')" style="flex:1; padding:6px; font-size:12px; border-radius:6px; cursor:pointer; background:var(--accent); border:1px solid var(--accent); color:#fff;">Sealed Product</button>
+          <button id="purchase-mode-cards-btn" onclick="setPurchaseMode('cards')" style="flex:1; padding:6px; font-size:12px; border-radius:6px; cursor:pointer; background:transparent; border:1px solid var(--border); color:var(--text);">Individual Cards</button>
+        </div>
+
+        <div id="purchase-sealed-form">
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Game</label>
+          <select id="purchase-game-select" onchange="onPurchaseGameChange()" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Set</label>
+          <select id="purchase-set-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Product</label>
+          <select id="purchase-product-select" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <option>Booster Box</option>
+            <option>Elite Trainer Box</option>
+            <option>Blister Pack</option>
+            <option>Bundle</option>
+            <option>Tin</option>
+            <option value="Other">Other</option>
+          </select>
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Price paid</label>
+          <input type="number" id="purchase-price-input" min="0" step="0.01" placeholder="e.g. 149.99" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Source</label>
+          <input type="text" id="purchase-source-input" placeholder="e.g. Local game store, eBay" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+          <button class="add-btn" style="width:100%; padding:7px;" onclick="logProductPurchase()">Add purchase</button>
+        </div>
+
+        <div id="purchase-cards-form" style="display:none;">
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Search for a card</label>
+          <div style="display:flex; gap:6px; margin-bottom:8px;">
+            <input type="text" id="cpb-card-search-input" placeholder="Card name..." onkeydown="if(event.key==='Enter') searchCardsForPurchase()" style="flex:1; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            <button class="add-btn" style="padding:6px 12px; font-size:12px;" onclick="searchCardsForPurchase()">Search</button>
+          </div>
+          <div id="cpb-search-results" style="margin-bottom:10px;"></div>
+
+          <div id="cpb-batch-list" style="margin-bottom:8px;"></div>
+          <p style="font-size:13px; font-weight:600; margin:0 0 10px; display:flex; justify-content:space-between;"><span>Total</span><span id="cpb-total">$0.00</span></p>
+
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Source</label>
+          <input type="text" id="cpb-source-input" placeholder="e.g. Local game store, eBay" style="width:100%; margin-bottom:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+          <button class="add-btn" style="width:100%; padding:7px;" onclick="saveCardPurchaseBatch()">Save Purchase</button>
+        </div>
+
         <button class="add-btn" style="width:100%; padding:7px; margin-top:8px; background:transparent; border:1px solid var(--border); color:var(--text);" onclick="exportPurchasesToExcel()">Export to Excel</button>
         <div id="purchase-log-list" style="margin-top:12px;"></div>
       </div>
@@ -1128,7 +1152,7 @@
     let userBinders = [];
     if (collectionRowId) {
       const { data } = await supabaseClient
-        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id, binder_page, binder_slot').eq('id', collectionRowId).maybeSingle();
+        .from('user_collection').select('id, estimated_grade, trade_available, purchase_price, binder_id, binder_page, binder_slot, item_type').eq('id', collectionRowId).maybeSingle();
       ownedRow = data;
       const { data: binders } = await supabaseClient
         .from('binders').select('id, name').eq('user_id', loadedUserId).order('created_at', { ascending: true });
@@ -1171,8 +1195,17 @@
           ${ownedRow ? `
           <div style="margin-top:16px;">
             <p class="section-label" style="margin-bottom:8px;">Your copy</p>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Estimated grade</label>
-            <input type="number" id="detail-grade-input" min="1" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Item type</label>
+            <select id="detail-item-type-select" onchange="onDetailItemTypeChange()" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+              <option value="Raw" ${(!ownedRow.item_type || ownedRow.item_type === 'Raw') ? 'selected' : ''}>Raw</option>
+              <option value="Sleeve" ${ownedRow.item_type === 'Sleeve' ? 'selected' : ''}>Sleeve</option>
+              <option value="Slab" ${ownedRow.item_type === 'Slab' ? 'selected' : ''}>Slab (graded)</option>
+            </select>
+            <div id="detail-grade-wrap" style="display:${ownedRow.item_type === 'Slab' ? 'block' : 'none'};">
+              <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Grade</label>
+              <input type="number" id="detail-grade-input" min="0" max="10" step="0.5" value="${ownedRow.estimated_grade ?? ''}" placeholder="e.g. 9.5" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;">
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:8px; cursor:pointer;">
               <input type="checkbox" id="detail-trade-checkbox" ${ownedRow.trade_available ? 'checked' : ''}>
               Available for trade
             </label>
@@ -1406,9 +1439,15 @@
     }
   }
 
+  function onDetailItemTypeChange() {
+    const itemType = document.getElementById('detail-item-type-select').value;
+    document.getElementById('detail-grade-wrap').style.display = itemType === 'Slab' ? 'block' : 'none';
+  }
+
   async function saveGradeTrade(collectionRowId) {
+    const itemType = document.getElementById('detail-item-type-select').value;
     const gradeInput = document.getElementById('detail-grade-input').value;
-    const grade = gradeInput ? parseFloat(gradeInput) : null;
+    const grade = (itemType === 'Slab' && gradeInput) ? parseFloat(gradeInput) : null;
     const tradeAvailable = document.getElementById('detail-trade-checkbox').checked;
     const binderSelect = document.getElementById('detail-binder-select');
     const binderId = binderSelect && binderSelect.value ? binderSelect.value : null;
@@ -1419,7 +1458,7 @@
 
     const { error } = await supabaseClient
       .from('user_collection')
-      .update({ estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId, binder_page: binderPage, binder_slot: binderSlot })
+      .update({ item_type: itemType, estimated_grade: grade, trade_available: tradeAvailable, binder_id: binderId, binder_page: binderPage, binder_slot: binderSlot })
       .eq('id', collectionRowId);
 
     if (error) { console.error('Save grade/trade error:', error); return; }
@@ -1650,21 +1689,24 @@
   let topCardRowId = null;
 
   async function loadSpendValueChart(userId, currentPortfolioValue) {
-    const { data, error } = await supabaseClient
-      .from('product_purchases')
-      .select('purchased_at, price_paid')
-      .eq('user_id', userId)
-      .order('purchased_at', { ascending: true });
+    const [sealedResult, cardResult] = await Promise.all([
+      supabaseClient.from('product_purchases').select('purchased_at, price_paid').eq('user_id', userId),
+      supabaseClient.from('card_purchase_batches').select('purchased_at, total_price').eq('user_id', userId),
+    ]);
+
+    const sealedRows = (sealedResult.data || []).map((r) => ({ purchased_at: r.purchased_at, amount: Number(r.price_paid) || 0 }));
+    const cardRows = (cardResult.data || []).map((r) => ({ purchased_at: r.purchased_at, amount: Number(r.total_price) || 0 }));
+    const data = [...sealedRows, ...cardRows].sort((a, b) => new Date(a.purchased_at) - new Date(b.purchased_at));
 
     const container = document.getElementById('spend-value-content');
-    if (error || !data || data.length === 0) {
-      container.innerHTML = '<p class="empty" style="padding:6px 0; font-size:12px;">Log a product purchase below to see this chart.</p>';
+    if (data.length === 0) {
+      container.innerHTML = '<p class="empty" style="padding:6px 0; font-size:12px;">Log a purchase below to see this chart.</p>';
       return;
     }
 
     let cumulative = 0;
     const points = data.map((row) => {
-      cumulative += Number(row.price_paid) || 0;
+      cumulative += row.amount;
       return cumulative;
     });
 
@@ -1755,6 +1797,168 @@
 
     document.getElementById('purchase-price-input').value = '';
     document.getElementById('purchase-source-input').value = '';
+    loadPurchaseLog(loadedUserId);
+    loadDashboard(loadedUserId);
+  }
+
+  // ---- Individual card purchases (true batch: multiple cards, one purchase session) ----
+  function setPurchaseMode(mode) {
+    const sealedBtn = document.getElementById('purchase-mode-sealed-btn');
+    const cardsBtn = document.getElementById('purchase-mode-cards-btn');
+    const sealedForm = document.getElementById('purchase-sealed-form');
+    const cardsForm = document.getElementById('purchase-cards-form');
+    const activeStyle = 'background:var(--accent); border:1px solid var(--accent); color:#fff;';
+    const inactiveStyle = 'background:transparent; border:1px solid var(--border); color:var(--text);';
+
+    if (mode === 'sealed') {
+      sealedForm.style.display = 'block';
+      cardsForm.style.display = 'none';
+      sealedBtn.style.cssText = sealedBtn.style.cssText.replace(/background:.*?;.*?color:[^;]*;/, activeStyle);
+      cardsBtn.style.cssText = cardsBtn.style.cssText.replace(/background:.*?;.*?color:[^;]*;/, inactiveStyle);
+    } else {
+      sealedForm.style.display = 'none';
+      cardsForm.style.display = 'block';
+      cardsBtn.style.cssText = cardsBtn.style.cssText.replace(/background:.*?;.*?color:[^;]*;/, activeStyle);
+      sealedBtn.style.cssText = sealedBtn.style.cssText.replace(/background:.*?;.*?color:[^;]*;/, inactiveStyle);
+    }
+  }
+
+  let currentBatchItems = []; // { card: {id, name, card_number, sets}, qty, price, itemType, grade }
+
+  async function searchCardsForPurchase() {
+    const q = document.getElementById('cpb-card-search-input').value.trim();
+    const resultsEl = document.getElementById('cpb-search-results');
+    if (!q) { resultsEl.innerHTML = ''; return; }
+
+    const { data: cards, error } = await supabaseClient
+      .from('cards')
+      .select('id, name, card_number, image_url, sets(name, games(name))')
+      .ilike('name', `%${q}%`)
+      .limit(8);
+
+    if (error || !cards || cards.length === 0) {
+      resultsEl.innerHTML = '<p style="font-size:12px; color:var(--text-muted);">No cards found.</p>';
+      return;
+    }
+
+    resultsEl.innerHTML = cards.map((c) => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-top:1px solid var(--border); font-size:12px;">
+        <span>${c.name}${c.card_number ? ' #' + c.card_number : ''} <span style="color:var(--text-muted);">· ${c.sets?.name || ''}</span></span>
+        <button class="add-btn" style="padding:3px 8px; font-size:11px;" onclick='addCardToBatch(${JSON.stringify(c).replace(/'/g, "&#39;")})'>+ Add</button>
+      </div>
+    `).join('');
+  }
+
+  function addCardToBatch(card) {
+    currentBatchItems.push({ card, qty: 1, price: 0, itemType: 'Raw', grade: null });
+    document.getElementById('cpb-search-results').innerHTML = '';
+    document.getElementById('cpb-card-search-input').value = '';
+    renderBatchList();
+  }
+
+  function removeCardFromBatch(index) {
+    currentBatchItems.splice(index, 1);
+    renderBatchList();
+  }
+
+  function updateBatchItem(index, field, value) {
+    const item = currentBatchItems[index];
+    if (field === 'qty') item.qty = parseInt(value) || 1;
+    else if (field === 'price') item.price = parseFloat(value) || 0;
+    else if (field === 'itemType') item.itemType = value;
+    else if (field === 'grade') item.grade = value ? parseFloat(value) : null;
+    renderBatchList();
+  }
+
+  function renderBatchList() {
+    const listEl = document.getElementById('cpb-batch-list');
+    listEl.innerHTML = currentBatchItems.map((item, i) => `
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px; margin-bottom:8px; font-size:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong>${item.card.name}${item.card.card_number ? ' #' + item.card.card_number : ''}</strong>
+          <button style="background:transparent; border:none; color:var(--text-muted); cursor:pointer;" onclick="removeCardFromBatch(${i})"><i class="ti ti-x" aria-hidden="true"></i></button>
+        </div>
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <input type="number" min="1" value="${item.qty}" placeholder="Qty" style="width:50px; background:var(--card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:5px; font-size:11px;" onchange="updateBatchItem(${i}, 'qty', this.value)">
+          <input type="number" min="0" step="0.01" value="${item.price}" placeholder="Price" style="flex:1; background:var(--card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:5px; font-size:11px;" onchange="updateBatchItem(${i}, 'price', this.value)">
+          <select style="background:var(--card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:5px; font-size:11px;" onchange="updateBatchItem(${i}, 'itemType', this.value)">
+            <option value="Raw" ${item.itemType === 'Raw' ? 'selected' : ''}>Raw</option>
+            <option value="Sleeve" ${item.itemType === 'Sleeve' ? 'selected' : ''}>Sleeve</option>
+            <option value="Slab" ${item.itemType === 'Slab' ? 'selected' : ''}>Slab</option>
+          </select>
+        </div>
+        ${item.itemType === 'Slab' ? `<input type="number" min="0" max="10" step="0.5" value="${item.grade ?? ''}" placeholder="Grade (0-10)" style="width:100%; background:var(--card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:5px; font-size:11px;" onchange="updateBatchItem(${i}, 'grade', this.value)">` : ''}
+      </div>
+    `).join('');
+
+    const total = currentBatchItems.reduce((sum, item) => sum + (item.price || 0), 0);
+    document.getElementById('cpb-total').textContent = formatPrice(total);
+  }
+
+  async function saveCardPurchaseBatch() {
+    if (currentBatchItems.length === 0) { alert('Add at least one card first.'); return; }
+    const source = document.getElementById('cpb-source-input').value.trim() || null;
+    const total = currentBatchItems.reduce((sum, item) => sum + (item.price || 0), 0);
+
+    const { data: batch, error: batchError } = await supabaseClient
+      .from('card_purchase_batches')
+      .insert({ user_id: loadedUserId, source, total_price: total })
+      .select('id')
+      .single();
+
+    if (batchError || !batch) { alert('Could not save purchase, see console.'); console.error(batchError); return; }
+
+    for (const item of currentBatchItems) {
+      const grade = item.itemType === 'Slab' ? item.grade : null;
+
+      const { data: purchaseItem, error: itemError } = await supabaseClient
+        .from('card_purchase_items')
+        .insert({
+          batch_id: batch.id,
+          card_id: item.card.id,
+          quantity: item.qty,
+          price_paid: item.price,
+          item_type: item.itemType,
+          estimated_grade: grade,
+        })
+        .select('id')
+        .single();
+
+      if (itemError || !purchaseItem) { console.error('Purchase item save error:', itemError); continue; }
+
+      const { data: existing } = await supabaseClient
+        .from('user_collection')
+        .select('id, quantity')
+        .eq('user_id', loadedUserId)
+        .eq('card_id', item.card.id)
+        .eq('condition', 'Near Mint')
+        .eq('variant', 'Normal')
+        .eq('language', 'English')
+        .eq('item_type', item.itemType)
+        .maybeSingle();
+
+      if (existing) {
+        await supabaseClient.from('user_collection').update({
+          quantity: existing.quantity + item.qty,
+          card_purchase_item_id: purchaseItem.id,
+          estimated_grade: grade,
+        }).eq('id', existing.id);
+      } else {
+        await supabaseClient.from('user_collection').insert({
+          user_id: loadedUserId,
+          card_id: item.card.id,
+          quantity: item.qty,
+          variant: 'Normal',
+          item_type: item.itemType,
+          estimated_grade: grade,
+          card_purchase_item_id: purchaseItem.id,
+        });
+      }
+    }
+
+    currentBatchItems = [];
+    renderBatchList();
+    document.getElementById('cpb-source-input').value = '';
     loadPurchaseLog(loadedUserId);
     loadDashboard(loadedUserId);
   }
@@ -2025,26 +2229,49 @@
   }
 
   async function exportPurchasesToExcel() {
-    const { data, error } = await supabaseClient
+    const { data: sealedData, error: sealedError } = await supabaseClient
       .from('product_purchases')
       .select('purchased_at, product_type, price_paid, source, sets(name, games(name))')
       .eq('user_id', loadedUserId)
       .order('purchased_at', { ascending: false });
 
-    if (error) { console.error('Export error:', error); alert('Export failed, see console.'); return; }
-    if (!data || data.length === 0) { alert('No purchases logged yet.'); return; }
+    const { data: cardBatches, error: cardError } = await supabaseClient
+      .from('card_purchase_batches')
+      .select('purchased_at, source, card_purchase_items(quantity, price_paid, item_type, estimated_grade, cards(name, card_number, sets(name, games(name))))')
+      .eq('user_id', loadedUserId)
+      .order('purchased_at', { ascending: false });
 
-    const rows = data.map((row) => ({
+    if (sealedError && cardError) { console.error('Export error:', sealedError, cardError); alert('Export failed, see console.'); return; }
+    if ((!sealedData || sealedData.length === 0) && (!cardBatches || cardBatches.length === 0)) { alert('No purchases logged yet.'); return; }
+
+    const rows = (sealedData || []).map((row) => ({
       Date: row.purchased_at ? new Date(row.purchased_at).toLocaleDateString() : '',
       Game: row.sets?.games?.name || '',
       Set: row.sets?.name || '',
       Product: row.product_type || '',
+      'Item Type': '',
+      Grade: '',
       Source: row.source || '',
       'Price Paid': Number(row.price_paid) || 0,
     }));
 
+    for (const batch of cardBatches || []) {
+      for (const item of batch.card_purchase_items || []) {
+        rows.push({
+          Date: batch.purchased_at ? new Date(batch.purchased_at).toLocaleDateString() : '',
+          Game: item.cards?.sets?.games?.name || '',
+          Set: item.cards?.sets?.name || '',
+          Product: `${item.cards?.name || ''}${item.cards?.card_number ? ' #' + item.cards.card_number : ''} (x${item.quantity})`,
+          'Item Type': item.item_type || '',
+          Grade: item.estimated_grade ?? '',
+          Source: batch.source || '',
+          'Price Paid': Number(item.price_paid) || 0,
+        });
+      }
+    }
+
     const totalSpend = rows.reduce((sum, r) => sum + r['Price Paid'], 0);
-    rows.push({ Date: '', Game: '', Set: '', Product: '', Source: 'TOTAL SPEND', 'Price Paid': totalSpend });
+    rows.push({ Date: '', Game: '', Set: '', Product: '', 'Item Type': '', Grade: '', Source: 'TOTAL SPEND', 'Price Paid': totalSpend });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();

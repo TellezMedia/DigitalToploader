@@ -101,6 +101,22 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.29 (core app)
+
+**Added:**
+- Item Type on collection rows: Raw, Sleeve, or Slab, alongside the existing grade field (now correctly ranges 0-10, was 1-10). Grade only shows/applies when Item Type is Slab. Available on the card detail modal in both `index.html` and `collection.html`.
+- "Log a Purchase" now has a mode toggle: Sealed Product (existing) or Individual Cards (new). Individual Cards mode lets you search for a card, add it to a running batch with its own quantity, price, Item Type, and grade, see a running total, then save the whole batch as one purchase. Every card added gets linked back to that purchase for true cost-basis tracking (price paid ÷ quantity = cost per card), not just added to your collection blind.
+- Spend vs. Value chart and Excel export now include individual card purchases alongside sealed product purchases.
+
+**Setup required after this release:**
+1. Run `schema_addition_v15.sql` in Supabase SQL Editor (adds `item_type` to `user_collection`, new `card_purchase_batches`/`card_purchase_items` tables, and `card_purchase_item_id` link on `user_collection`).
+2. No import re-run needed.
+
+## v0.28.1 (core app, patch)
+
+**Added:**
+- The daily TCGCSV watch check (previously Palworld-only) is now a small watchlist, and now also watches for "Cyberpunk" (Cyberpunk TCG, retail release Nov 6 2026). If TCGPlayer's own categories list picks it up, you'll get a heads-up in the Action's log with the exact category ID, same pattern as the earlier Palworld watch.
+
 ## v0.54 — social layer, real brand colors on share icons
 
 **Fixed:**
