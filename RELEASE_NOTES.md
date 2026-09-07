@@ -101,6 +101,19 @@ independently.
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
 
+## v0.29.2 (core app, patch)
+
+**Added:**
+- Individual Cards purchase mode now has Game and Set dropdowns before the card name search, only Game is required, Set narrows results but is optional.
+
+**Fixed:**
+- `.add-btn` had no actual base CSS rule at all, it was rendering as a plain unstyled browser button everywhere it wasn't manually overridden inline (which is why buttons looked inconsistent). Added a real base style matching the site's accent color language, plus a `.secondary` variant for bordered/lower-emphasis actions (Search, Export to Excel, the +Add buttons). The Sealed Product / Individual Cards mode toggle also now uses a proper CSS class instead of a fragile inline-style-replace hack.
+
+## v0.29.1 (core app, patch)
+
+**Changed:**
+- Purchase log list now merges sealed product purchases and individual card purchases into one chronological list (previously card batches didn't show up here at all), and shows only the 3 most recent by default with a "See more" link to expand.
+
 ## v0.29 (core app)
 
 **Added:**
