@@ -4,6 +4,12 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.30.1 (core app, patch)
+
+**Added:**
+1. View All on the Collection page now shows the market price under each owned card, with the same up or down trend arrow as the Collection grid. The price follows the variant you own, and cards in a variant other than Normal show the variant label above it. Prices use your selected currency.
+2. Unowned (greyed-out) cards in Master Set sets do not show a price, by request.
+
 ## v0.30 (core app)
 
 **Added:**

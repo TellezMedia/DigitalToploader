@@ -1838,6 +1838,25 @@
         const ownedRow = ownedRowByCardId.get(card.id);
         const isOwned = !!ownedRow;
         const langBadge = ownedRow?.language && ownedRow.language !== 'English' ? `<span class="lang-badge">${ownedRow.language}</span>` : '';
+
+        // Price (and variant label) only under owned cards, matching the Collection grid.
+        let priceHtml = '';
+        let variantLabel = '';
+        if (ownedRow) {
+          const rowVariant = ownedRow.variant || 'Normal';
+          const trends = ownedRow.cards?.price_trends;
+          const trend = trends?.find((t) => t.variant === rowVariant) || trends?.[0];
+          if (trend?.latest_price != null) {
+            let arrow = '';
+            if (trend.previous_price != null) {
+              if (Number(trend.latest_price) > Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-up trend-up" aria-hidden="true"></i>';
+              else if (Number(trend.latest_price) < Number(trend.previous_price)) arrow = '<i class="ti ti-arrow-down trend-down" aria-hidden="true"></i>';
+            }
+            priceHtml = `<p class="price">${formatPrice(trend.latest_price)}${arrow}</p>`;
+          }
+          if (rowVariant !== 'Normal') variantLabel = `<p class="meta" style="font-size:10px; margin:0 0 2px;">${rowVariant}</p>`;
+        }
+
         const tile = document.createElement('div');
         tile.className = 'gallery-card' + (isOwned ? '' : ' unowned-tile');
         tile.innerHTML = `
@@ -1850,6 +1869,8 @@
             : `<div class="thumb-placeholder"></div>`}
           ${rarityBadge(card.rarity)}
           <p class="name">${card.name}${card.card_number ? ' #' + card.card_number : ''}${langBadge}</p>
+          ${variantLabel}
+          ${priceHtml}
         `;
         gallery.appendChild(tile);
       }
