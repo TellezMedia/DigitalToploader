@@ -8,6 +8,7 @@
 <title>Digital TopLoader – Collection Manager</title>
 <script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scan.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -620,6 +621,9 @@
           <a href="#" onclick="signOut(); return false;">Sign out</a>
         </div>
       </div>
+      <button onclick="openScanner()" title="Scan cards with your camera" style="display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff; border:none; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; margin-right:10px; cursor:pointer;">
+        <i class="ti ti-scan" aria-hidden="true"></i> Scan
+      </button>
       <a href="https://discord.gg/Z4mRbEPCXZ" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#5865F2; color:#fff; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; text-decoration:none; margin-right:10px;">
         <i class="ti ti-brand-discord" aria-hidden="true"></i> Discord
       </a>
@@ -1377,6 +1381,15 @@
     }
 
     loadCollection();
+  }
+
+  function openScanner() {
+    if (!currentUserId) return;
+    DTScan.open({
+      client: supabaseClient,
+      userId: currentUserId,
+      onSaved: function () { loadCollection(); },
+    });
   }
 
   async function removeCard(collectionRowId) {

@@ -8,6 +8,7 @@
 <title>Digital TopLoader – TCG Collection Tracker & Portfolio Value</title>
 <script>(function(){try{var t=localStorage.getItem('dtl-theme')||'dark';if(t==='light')document.documentElement.classList.add('light');}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scan.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -778,6 +779,9 @@
           <a href="#" onclick="signOut(); return false;">Sign out</a>
         </div>
       </div>
+      <button onclick="openScanner()" title="Scan cards with your camera" style="display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff; border:none; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; margin-right:10px; cursor:pointer;">
+        <i class="ti ti-scan" aria-hidden="true"></i> Scan
+      </button>
       <a href="https://discord.gg/Z4mRbEPCXZ" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:#5865F2; color:#fff; font-weight:600; font-size:13px; padding:6px 14px; border-radius:999px; text-decoration:none; margin-right:10px;">
         <i class="ti ti-brand-discord" aria-hidden="true"></i> Discord
       </a>
@@ -905,6 +909,7 @@
         </div>
 
         <div id="purchase-cards-form" style="display:none;">
+          <button class="add-btn secondary" style="width:100%; margin-bottom:10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;" onclick="openScanner(true)"><i class="ti ti-scan" aria-hidden="true"></i> Scan cards</button>
           <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Game</label>
           <select id="cpb-game-select" onchange="onCpbGameChange()" style="width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:6px 9px; border-radius:6px; font-size:12px;"></select>
           <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:3px;">Set (optional)</label>
@@ -1848,6 +1853,16 @@
     sealedBtn.classList.toggle('active', mode === 'sealed');
     cardsBtn.classList.toggle('active', mode === 'cards');
     if (mode === 'cards' && !cpbGamesLoaded) loadGamesForCardPurchase();
+  }
+
+  function openScanner(purchase) {
+    if (!loadedUserId) return;
+    DTScan.open({
+      client: supabaseClient,
+      userId: loadedUserId,
+      purchase: purchase === true,
+      onSaved: function () { loadDashboard(loadedUserId); loadPurchaseLog(loadedUserId); },
+    });
   }
 
   let currentBatchItems = []; // { card: {id, name, card_number, sets}, qty, price, itemType, grade }

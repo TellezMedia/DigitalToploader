@@ -4,6 +4,60 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.30 (core app)
+
+**Added:**
+1. Card scanning. A new Scan button in the top bar of the Dashboard and Collection pages opens a camera scanner. Fit a card inside the frame and tap Scan. The scanner reads the card name, collector number and printed set code, finds the matching card in the catalog, and compares the card artwork against the catalog image to pick the right printing. No Game and Set picking is needed beyond choosing the game at the top, which is remembered.
+2. Batch scanning. Keep scanning card after card. Confident matches drop straight into a review list (turn off "Auto-add confident matches" to confirm each one). In the list, adjust quantity, variant, language and Item Type (Raw, Sleeve, Slab with grade) per card, then tap "Add all to collection."
+3. Optional purchase tracking from a scan. Tick "Track as a purchase," enter a source and a price per card, and the scanned cards are saved as a linked purchase with true cost basis, the same as the Individual Cards purchase flow. The Individual Cards panel in Log a Purchase also has a Scan cards button that opens the scanner with purchase tracking already on.
+4. When a scan is not confident (for example several printings of the same card), the top matches are shown to pick from. A search by name box is built into the scanner as a fallback, and "Use a photo" lets desktop users scan from an image file.
+
+**Privacy:**
+1. Nothing is stored or uploaded from a scan. Camera frames are processed in the browser's memory and discarded. Catalog images are compared in memory only, with no new fingerprint data saved anywhere. Only the cards you confirm are written to your collection.
+
+**Notes:**
+1. All scanner code lives in one new shared file, scan.js, used by both pages, so the dual-modal gotcha does not apply here.
+2. Text reading uses Tesseract.js, loaded from the jsDelivr CDN the first time Scan is opened (a one-time download of a few MB, cached by the browser afterwards). English text only for now.
+3. No schema changes.
+4. Artwork comparison needs the card image host to allow the page to read its images. If a host does not, that game still scans using text only.
+
+## v0.29.4 (core app, patch)
+
+**Fixed:**
+- Topbar right-side controls were wrapping onto a second line on index.html and collection.html. Root cause: that container was a plain `<div>` with no layout rule, and `.user-menu` is a block-level div by default; once it got reordered to sit first (a few builds back), its block behavior started forcing every sibling after it onto a new line. The Discord badge just made the existing bug visible. Fixed by making the container an actual flex row on all four pages.
+
+## v0.29.3 (core app, patch)
+
+**Fixed:**
+- Individual Cards search row (card name input + Search button) was overflowing past the right sidebar's edge, a classic flexbox gotcha: the input's `flex:1` doesn't shrink below its content size without `min-width:0`. Fixed there and applied the same fix to profile.html's collector search row, which had the identical pattern.
+
+**Added:**
+- Discord badge in the topbar of all four pages, styled like the PogoDex Tracker site (Discord blurple pill, top-right area), linking to the Digital TopLoader Discord.
+
+## v0.29.2 (core app, patch)
+
+**Added:**
+- Individual Cards purchase mode now has Game and Set dropdowns before the card name search, only Game is required, Set narrows results but is optional.
+
+**Fixed:**
+- `.add-btn` had no actual base CSS rule at all, it was rendering as a plain unstyled browser button everywhere it wasn't manually overridden inline (which is why buttons looked inconsistent). Added a real base style matching the site's accent color language, plus a `.secondary` variant for bordered/lower-emphasis actions (Search, Export to Excel, the +Add buttons). The Sealed Product / Individual Cards mode toggle also now uses a proper CSS class instead of a fragile inline-style-replace hack.
+
+## v0.29.1 (core app, patch)
+
+**Changed:**
+- Purchase log list now merges sealed product purchases and individual card purchases into one chronological list (previously card batches didn't show up here at all), and shows only the 3 most recent by default with a "See more" link to expand.
+
+## v0.29 (core app)
+
+**Added:**
+- Item Type on collection rows: Raw, Sleeve, or Slab, alongside the existing grade field (now correctly ranges 0-10, was 1-10). Grade only shows/applies when Item Type is Slab. Available on the card detail modal in both `index.html` and `collection.html`.
+- "Log a Purchase" now has a mode toggle: Sealed Product (existing) or Individual Cards (new). Individual Cards mode lets you search for a card, add it to a running batch with its own quantity, price, Item Type, and grade, see a running total, then save the whole batch as one purchase. Every card added gets linked back to that purchase for true cost-basis tracking (price paid ÷ quantity = cost per card), not just added to your collection blind.
+- Spend vs. Value chart and Excel export now include individual card purchases alongside sealed product purchases.
+
+**Setup required after this release:**
+1. Run `schema_addition_v15.sql` in Supabase SQL Editor (adds `item_type` to `user_collection`, new `card_purchase_batches`/`card_purchase_items` tables, and `card_purchase_item_id` link on `user_collection`).
+2. No import re-run needed.
+
 ## v0.28 (core app)
 
 **Added:**
@@ -100,43 +154,6 @@ independently.
 **Setup required after this release:**
 1. Run `schema_addition_v10.sql` in Supabase SQL Editor (adds `binder_page`/`binder_slot` to `user_collection`, `source` to `product_purchases`).
 2. No import re-run needed, no catalog data touched.
-
-## v0.29.4 (core app, patch)
-
-**Fixed:**
-- Topbar right-side controls were wrapping onto a second line on index.html and collection.html. Root cause: that container was a plain `<div>` with no layout rule, and `.user-menu` is a block-level div by default; once it got reordered to sit first (a few builds back), its block behavior started forcing every sibling after it onto a new line. The Discord badge just made the existing bug visible. Fixed by making the container an actual flex row on all four pages.
-
-## v0.29.3 (core app, patch)
-
-**Fixed:**
-- Individual Cards search row (card name input + Search button) was overflowing past the right sidebar's edge, a classic flexbox gotcha: the input's `flex:1` doesn't shrink below its content size without `min-width:0`. Fixed there and applied the same fix to profile.html's collector search row, which had the identical pattern.
-
-**Added:**
-- Discord badge in the topbar of all four pages, styled like the PogoDex Tracker site (Discord blurple pill, top-right area), linking to the Digital TopLoader Discord.
-
-## v0.29.2 (core app, patch)
-
-**Added:**
-- Individual Cards purchase mode now has Game and Set dropdowns before the card name search, only Game is required, Set narrows results but is optional.
-
-**Fixed:**
-- `.add-btn` had no actual base CSS rule at all, it was rendering as a plain unstyled browser button everywhere it wasn't manually overridden inline (which is why buttons looked inconsistent). Added a real base style matching the site's accent color language, plus a `.secondary` variant for bordered/lower-emphasis actions (Search, Export to Excel, the +Add buttons). The Sealed Product / Individual Cards mode toggle also now uses a proper CSS class instead of a fragile inline-style-replace hack.
-
-## v0.29.1 (core app, patch)
-
-**Changed:**
-- Purchase log list now merges sealed product purchases and individual card purchases into one chronological list (previously card batches didn't show up here at all), and shows only the 3 most recent by default with a "See more" link to expand.
-
-## v0.29 (core app)
-
-**Added:**
-- Item Type on collection rows: Raw, Sleeve, or Slab, alongside the existing grade field (now correctly ranges 0-10, was 1-10). Grade only shows/applies when Item Type is Slab. Available on the card detail modal in both `index.html` and `collection.html`.
-- "Log a Purchase" now has a mode toggle: Sealed Product (existing) or Individual Cards (new). Individual Cards mode lets you search for a card, add it to a running batch with its own quantity, price, Item Type, and grade, see a running total, then save the whole batch as one purchase. Every card added gets linked back to that purchase for true cost-basis tracking (price paid ÷ quantity = cost per card), not just added to your collection blind.
-- Spend vs. Value chart and Excel export now include individual card purchases alongside sealed product purchases.
-
-**Setup required after this release:**
-1. Run `schema_addition_v15.sql` in Supabase SQL Editor (adds `item_type` to `user_collection`, new `card_purchase_batches`/`card_purchase_items` tables, and `card_purchase_item_id` link on `user_collection`).
-2. No import re-run needed.
 
 ## v0.28.1 (core app, patch)
 
