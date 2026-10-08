@@ -4,6 +4,23 @@ Two parallel version tracks from here on: v0.2x for the core app (catalog,
 collection, pricing), v0.5x for the social layer (alpha/beta). They release
 independently.
 
+## v0.31 (core app)
+
+**Changed:**
+1. The scanner now opens fullscreen, covering the whole screen, so nothing is pushed below the fold on phones. The camera is live behind a Scan button and a Bulk Scan button in the center of the screen. A game picker and close button sit at the top, and Review, Use a photo, Search by name and Switch camera sit at the bottom.
+2. Scan takes one card with a shutter flash and a short vibration. The result slides in as a confirmation with an Undo button.
+3. Bulk Scan counts down 3, 2, 1, SCAN, fires the shutter flash, reads the card, shows what was added, pauses a moment so you can swap cards, then counts down again. Tap Stop to end it. It stops on its own after three misses in a row, and it pauses while a pick list is open when a match is not certain.
+4. The list of scanned cards, quantity, variant, language and Item Type edits, purchase tracking and "Add all to collection" moved into a Review panel that slides up from the bottom.
+5. Removed the "Auto-add confident matches" checkbox. Confident matches are always added (with Undo), and uncertain ones always show a pick list.
+
+**Fixed (camera showing a black screen):**
+1. If the browser never answers the camera request, the scanner now gives up after 15 seconds and says so, instead of sitting on a black box. Try again and Use a photo buttons are shown.
+2. A camera that starts but never sends a picture, or sends only black frames, is now detected and explained instead of showing a blank screen.
+3. If the first camera request fails, the scanner retries with simpler camera settings before giving up.
+4. Blocked camera access, no camera found, and a camera in use by another app each get their own plain message.
+5. Opening the site inside Discord, Facebook, Instagram and similar in-app browsers now shows a notice to open it in Safari or Chrome, since those browsers often block the camera.
+6. The camera is stopped if the scanner is closed while the request is still pending, so the camera light does not stay on.
+
 ## v0.30.1 (core app, patch)
 
 **Added:**
